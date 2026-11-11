@@ -1,0 +1,38 @@
+The analogy below held up when it was checked. Make it ready to say out loud.
+
+<summary>
+{{.Summary}}
+</summary>
+
+<audience>
+{{.Audience}}
+</audience>
+
+{{template "skeletonBlock" .Skeleton}}
+
+{{template "analogyBlock" .Candidate}}
+
+<check>
+Fit: {{.Verdict.Fit}} of 5
+Problems:
+{{- range .Verdict.Problems}}
+- {{.}}
+{{- else}}
+- none found
+{{- end}}
+Suggested fix: {{with .Verdict.Fix}}{{.}}{{else}}none{{end}}
+</check>
+
+Keep the same world and change as little as the problems require. Fix the problems the check
+found, using the suggested fix where it helps, without switching worlds or adding a second
+comparison. Keep every cause-and-effect link the analogy already has, in the same order.
+
+Write the spoken version for the ear: two or three sentences, each short enough to say in one
+breath, concrete, and ending on the decision. Hear it as the speaker would say it to this
+audience. Tighten the wording, but do not drop a cause, an effect, or the choice to make a
+sentence shorter.
+
+Keep the mapping list complete, so each player, the constraint, the tradeoff, the cost of doing
+nothing, and the decision has its counterpart. Make the breaking point honest and specific: the
+one place a sharp listener could push, said plainly, so the speaker can name it first.
+{{- template "retryNote" .}}

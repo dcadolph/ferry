@@ -1,0 +1,40 @@
+{{- /* Shared blocks that the step templates include. */ -}}
+
+{{define "skeletonBlock" -}}
+<skeleton>
+Players:
+{{- range .Players}}
+- {{.Name}}{{with .Role}}: {{.}}{{end}}
+{{- end}}
+Constraint: {{.Constraint}}
+Tradeoff: {{.Tradeoff}}
+Cost of doing nothing: {{.CostOfInaction}}
+Decision: {{.Decision}}
+Point to land: {{.Point}}
+Causal chain:
+{{- range $i, $link := .Chain}}
+{{inc $i}}. {{$link}}
+{{- end}}
+</skeleton>
+{{- end}}
+
+{{define "analogyBlock" -}}
+<analogy>
+<world>{{.World}}</world>
+Spoken: {{.Spoken}}
+Mappings:
+{{- range .Mappings}}
+- {{.Analogy}} stands for {{.Real}}
+{{- end}}
+Decision line: {{.DecisionLine}}
+Where it breaks down: {{.BreaksDown}}
+</analogy>
+{{- end}}
+
+{{define "retryNote"}}
+{{- with .Problem}}
+
+An earlier reply to this request could not be used: {{.}}.
+Write the reply again from the start, and make sure it does not have that problem.
+{{- end}}
+{{- end}}

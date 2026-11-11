@@ -1,0 +1,41 @@
+Draft one analogy for the situation below, drawn from the single world in the world tag. Other
+drafts are being written from other worlds at the same time, so stay inside this one and make it
+as strong as this world allows.
+
+<summary>
+{{.Summary}}
+</summary>
+
+<audience>
+{{.Audience}}
+</audience>
+
+{{template "skeletonBlock" .Skeleton}}
+
+<world>{{.World}}</world>
+
+The audience has to know this world from everyday life, well enough to reason inside it without
+explanation. Use the part of it they have lived or watched, not a specialist corner.
+
+Copy the shape, not the surface. Give every part of the skeleton a counterpart: each player, the
+constraint, the tradeoff, the cost of doing nothing, and the decision. Run the causal chain the
+same way, link for link, so a listener who reasons inside the analogy reaches the conclusion the
+real situation calls for.
+
+The spoken version is two or three sentences the speaker can say without notes. It carries the
+spine: what keeps happening, where that leads, and the choice. A counterpart that does not fit in
+those sentences still belongs in the mappings. The decision line is the part of the spoken
+version that points at the choice. The mappings say what stands for what. The breaking point
+names where the comparison stops matching reality. Every analogy breaks somewhere, and naming the
+place honestly lets the speaker get there before a skeptic does.
+{{- with .Dropped}}
+
+Earlier drafts from other worlds did not hold up when they were checked:
+<dropped>
+{{- range .}}
+- {{.}}
+{{- end}}
+</dropped>
+Avoid the same failures.
+{{- end}}
+{{- template "retryNote" .}}
