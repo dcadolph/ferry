@@ -1,0 +1,62 @@
+{{define "analogy" -}}
+Say it like this:
+{{wrap .Analogy.Spoken}}
+
+What stands for what:
+{{range .Analogy.Mappings}}- {{.Analogy}} -> {{.Real}}
+{{else}}(none)
+{{end}}
+Where it breaks:
+{{wrap .Analogy.BreaksDown}}
+
+{{wrap (printf "World: %s" .Analogy.World)}}
+{{end}}
+
+{{define "work" -}}
+{{$s := .Skeleton -}}
+Skeleton:
+Players:
+{{range $s.Players}}- {{.Name}}: {{.Role}}
+{{else}}(none)
+{{end -}}
+{{wrap (printf "Constraint: %s" $s.Constraint)}}
+{{wrap (printf "Tradeoff: %s" $s.Tradeoff)}}
+{{wrap (printf "Cost of inaction: %s" $s.CostOfInaction)}}
+{{wrap (printf "Decision: %s" $s.Decision)}}
+{{wrap (printf "Point: %s" $s.Point)}}
+Cause and effect:
+{{range $i, $step := $s.Chain}}{{inc $i}}. {{$step}}
+{{else}}(none)
+{{end}}
+Candidates:
+{{range $i, $c := .Checked -}}
+{{if $i}}
+{{end -}}
+{{$c.Candidate.World}}
+{{- if $c.Round}} (round {{$c.Round}}){{end -}}
+: {{if $c.Kept}}kept{{else}}dropped{{end}}, fit {{$c.Verdict.Fit}}
+{{wrap $c.Candidate.Spoken}}
+{{if $c.Verdict.Problems -}}
+Problems:
+{{range $c.Verdict.Problems}}- {{.}}
+{{end -}}
+{{else -}}
+Problems: none
+{{end -}}
+{{else -}}
+(none)
+{{end -}}
+{{with .Recheck}}
+Polished analogy: {{if .Kept}}kept{{else}}dropped{{end}}, fit {{.Verdict.Fit}}
+{{if not .Kept -}}
+{{wrap .Candidate.Spoken}}
+{{end -}}
+{{if .Verdict.Problems -}}
+Problems:
+{{range .Verdict.Problems}}- {{.}}
+{{end -}}
+{{else -}}
+Problems: none
+{{end -}}
+{{end -}}
+{{end}}
