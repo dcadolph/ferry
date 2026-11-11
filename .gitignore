@@ -1,0 +1,27 @@
+# Binaries
+/ferry
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+dist/
+
+# Test and coverage output
+*.test
+*.out
+*.prof
+
+# Go workspace and vendoring
+go.work
+go.work.sum
+vendor/
+
+# Local secrets
+.env
+
+# Editors and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
