@@ -1,7 +1,6 @@
 package render
 
 import (
-	"image/color"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,60 +17,7 @@ const (
 	panelMax = 84
 	// fieldLabel is the width of the right-aligned skeleton labels.
 	fieldLabel = 18
-	// meterDots is the number of dots in a fit meter, one per point of fit.
-	meterDots = 5
 )
-
-// palette holds the colors of the styled output, picked for a dark or a light background.
-type palette struct {
-	// accent colors mapping sides, step numbers, and the start of the panel border.
-	accent color.Color
-	// accent2 colors headings, table headers, and the end of the panel border.
-	accent2 color.Color
-	// text colors body text.
-	text color.Color
-	// muted colors labels, borders, and secondary text.
-	muted color.Color
-	// keptBG is the fill of a kept pill.
-	keptBG color.Color
-	// keptFG is the text of a kept pill.
-	keptFG color.Color
-	// dropBG is the fill of a dropped pill.
-	dropBG color.Color
-	// dropFG is the text of a dropped pill.
-	dropFG color.Color
-	// good colors a high fit and the bar of a kept card.
-	good color.Color
-	// warn colors a middling fit, problem markers, and the breakdown label.
-	warn color.Color
-	// bad colors a low fit and the bar of a dropped card.
-	bad color.Color
-	// empty colors the unfilled dots of a fit meter.
-	empty color.Color
-}
-
-// newPalette returns the palette for a dark background when dark is true, and for a light one
-// otherwise.
-func newPalette(dark bool) palette {
-	ld := lipgloss.LightDark(dark)
-	pick := func(light, dark string) color.Color {
-		return ld(lipgloss.Color(light), lipgloss.Color(dark))
-	}
-	return palette{
-		accent:  pick("#6D28D9", "#A78BFA"),
-		accent2: pick("#0E7490", "#22D3EE"),
-		text:    pick("#1F2937", "#E5E7EB"),
-		muted:   pick("#6B7280", "#9CA3AF"),
-		keptBG:  pick("#15803D", "#22C55E"),
-		keptFG:  pick("#FFFFFF", "#052E16"),
-		dropBG:  pick("#B91C1C", "#F87171"),
-		dropFG:  pick("#FFFFFF", "#450A0A"),
-		good:    pick("#15803D", "#22C55E"),
-		warn:    pick("#B45309", "#FBBF24"),
-		bad:     pick("#B91C1C", "#F87171"),
-		empty:   pick("#D1D5DB", "#4B5563"),
-	}
-}
 
 // fancy renders a result with borders, panels, tables, and truecolor for a terminal.
 type fancy struct {
@@ -85,11 +31,6 @@ type fancy struct {
 // background when dark is true.
 func newFancy(cols int, dark bool) fancy {
 	return fancy{p: newPalette(dark), cols: Width(cols)}
-}
-
-// fg returns a style with foreground c.
-func fg(c color.Color) lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(c)
 }
 
 // textOut returns the full styled output for res: the analogy, and with showWork the work after
@@ -286,7 +227,7 @@ func (f fancy) table(order []engine.Checked) string {
 	for i, c := range order {
 		rows[i] = []string{
 			strconv.Itoa(i + 1), c.Candidate.World, roundText(c.Round),
-			f.pill(c.Kept), f.meter(c.Verdict.Fit),
+			f.p.pill(c.Kept), f.p.meter(c.Verdict.Fit),
 		}
 	}
 	return table.New().
@@ -311,35 +252,6 @@ func (f fancy) table(order []engine.Checked) string {
 		Render()
 }
 
-// pill returns KEPT or DROPPED as bold text on a filled background.
-func (f fancy) pill(kept bool) string {
-	if kept {
-		return lipgloss.NewStyle().Bold(true).Padding(0, 1).
-			Background(f.p.keptBG).Foreground(f.p.keptFG).Render("KEPT")
-	}
-	return lipgloss.NewStyle().Bold(true).Padding(0, 1).
-		Background(f.p.dropBG).Foreground(f.p.dropFG).Render("DROPPED")
-}
-
-// meter returns a fit score as five dots, filled up to the score in a color that rates it,
-// followed by the score as a number so it never rests on color alone.
-func (f fancy) meter(n int) string {
-	if n < 1 {
-		return fg(f.p.muted).Render("-")
-	}
-	n = min(n, meterDots)
-	c := f.p.bad
-	switch {
-	case n >= 4:
-		c = f.p.good
-	case n == 3:
-		c = f.p.warn
-	}
-	return fg(c).Render(strings.Repeat("●", n)) +
-		fg(f.p.empty).Render(strings.Repeat("○", meterDots-n)) + " " +
-		fg(f.p.text).Render(strconv.Itoa(n)+"/5")
-}
-
 // card returns one candidate as a card with a thick left bar, green when kept and red when
 // dropped: a header with its rank, world, pill, fit meter, and round, then its spoken text and
 // its problems. A rank under 1 is left out.
@@ -354,8 +266,8 @@ func (f fancy) card(rank int, c engine.Checked) string {
 	if rank > 0 {
 		head = fg(f.p.muted).Render("#"+strconv.Itoa(rank)) + "  "
 	}
-	head += fg(f.p.text).Bold(true).Render(c.Candidate.World) + "  " + f.pill(c.Kept) + "  " +
-		f.meter(c.Verdict.Fit)
+	head += fg(f.p.text).Bold(true).Render(c.Candidate.World) + "  " + f.p.pill(c.Kept) + "  " +
+		f.p.meter(c.Verdict.Fit)
 	if c.Round > 0 {
 		head += "  " + fg(f.p.muted).Render("round "+strconv.Itoa(c.Round))
 	}

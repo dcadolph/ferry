@@ -1,4 +1,4 @@
-// Package render formats an engine result as text for the terminal, colored when wanted.
+// Package render formats an engine result as text for the terminal, styled when wanted.
 package render
 
 import (
@@ -9,8 +9,6 @@ import (
 	"strings"
 	"text/template"
 	"unicode/utf8"
-
-	"charm.land/lipgloss/v2"
 
 	"github.com/dcadolph/ferry/internal/engine"
 )
@@ -28,17 +26,11 @@ const (
 //go:embed text.tmpl
 var textSource string
 
-// textTemplate parses the text output templates with the funcs of st, wrapping text to cols.
-func textTemplate(st Style, cols int) (*template.Template, error) {
-	l := layout{st: st, cols: Width(cols)}
+// textTemplate parses the plain text output templates, wrapping text to cols.
+func textTemplate(cols int) (*template.Template, error) {
+	l := layout{cols: Width(cols)}
 	return template.New("text").Funcs(template.FuncMap{
 		"wrap":     func(s string) string { return wrap(s, l.cols) },
-		"head":     st.Heading,
-		"sub":      func(s string) string { return pad + st.Label(s) },
-		"good":     st.Green,
-		"italic":   st.Italic,
-		"strong":   st.Bold,
-		"dim":      st.Dim,
 		"field":    l.field,
 		"players":  l.players,
 		"steps":    l.steps,
@@ -47,14 +39,6 @@ func textTemplate(st Style, cols int) (*template.Template, error) {
 		"spoken":   l.spoken,
 		"problems": l.problems,
 	}).Parse(textSource)
-}
-
-// verdict returns "kept" in green or "dropped" in yellow.
-func verdict(st Style, kept bool) string {
-	if kept {
-		return st.Green("kept")
-	}
-	return st.Yellow("dropped")
 }
 
 // Text writes res to w: the spoken analogy, what stands for what, where it breaks, and its
@@ -66,7 +50,7 @@ func Text(w io.Writer, res engine.Result, showWork bool, st Style, cols int) err
 	if st.On() {
 		return fancyOut(w, newFancy(cols, !st.light).textOut(res, showWork))
 	}
-	t, err := textTemplate(st, cols)
+	t, err := textTemplate(cols)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrRender, err)
 	}
@@ -93,7 +77,7 @@ func Work(w io.Writer, res engine.Result, st Style, cols int) error {
 	if st.On() {
 		return fancyOut(w, newFancy(cols, !st.light).work(res))
 	}
-	t, err := textTemplate(st, cols)
+	t, err := textTemplate(cols)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrRender, err)
 	}
@@ -104,9 +88,9 @@ func Work(w io.Writer, res engine.Result, st Style, cols int) error {
 	return flush(w, &buf)
 }
 
-// fancyOut writes styled output to w, cutting its colors down to what w's terminal shows.
+// fancyOut writes styled output to w through ColorWriter.
 func fancyOut(w io.Writer, s string) error {
-	if _, err := lipgloss.Fprint(w, s); err != nil {
+	if _, err := io.WriteString(ColorWriter(w), s); err != nil {
 		return fmt.Errorf("%w: %w", ErrWrite, err)
 	}
 	return nil

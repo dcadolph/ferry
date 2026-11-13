@@ -872,10 +872,10 @@ func TestRootTerminal(t *testing.T) {
 	}, { // Test 1: A summary given as arguments gets the progress lines and no prompt.
 		Args: []string{testSummary}, WantPrompt: 0,
 		WantLines: []string{"\nRead the situation  0s\n", "  ✓ cars              kept     4/5\n"},
-	}, { // Test 2: With color wanted, stderr carries color and emoji and stdout gets the styled
-		// layout.
+	}, { // Test 2: With color wanted, stderr carries emoji, pills, and meters, and stdout gets the
+		// styled layout. The buffers are not terminals, so the color writer strips the codes.
 		Args: []string{testSummary}, Color: true,
-		WantLines: []string{"🔒 ", "🔍 ", "\x1b[32m✓\x1b[0m"},
+		WantLines: []string{"🔒 ", "🔍 ", "  ✓ cars               KEPT      ●●●●○ 4/5\n"},
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
@@ -1239,6 +1239,38 @@ func TestMessage(t *testing.T) {
 			t.Parallel()
 			if diff := cmp.Diff(test.WantResult, message("ferry: ", text, test.Cols)); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestStyles checks which of the two styles is on for each mix of streams. Buffers are not
+// terminal files, so the background check assumes dark without asking.
+func TestStyles(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		In        streams
+		WantErrOn bool
+		WantOutOn bool
+	}{{ // Test 0: Nothing colored.
+		In: streams{in: true},
+	}, { // Test 1: Both colored with a terminal on stdin.
+		In: streams{in: true, errOut: true, out: true}, WantErrOn: true, WantOutOn: true,
+	}, { // Test 2: Only stderr colored.
+		In: streams{in: true, errOut: true}, WantErrOn: true,
+	}, { // Test 3: Only stdout colored, with stdin not a terminal.
+		In: streams{out: true}, WantOutOn: true,
+	}}
+	for testNum, test := range tests {
+		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
+			t.Parallel()
+			var in, out, errOut bytes.Buffer
+			errStyle, outStyle := styles(&in, &out, &errOut, test.In)
+			if diff := cmp.Diff(test.WantErrOn, errStyle.On()); diff != "" {
+				t.Errorf("stderr style mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(test.WantOutOn, outStyle.On()); diff != "" {
+				t.Errorf("stdout style mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

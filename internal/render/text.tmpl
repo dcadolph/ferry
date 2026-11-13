@@ -1,22 +1,22 @@
 {{define "analogy" -}}
-{{head "Say it like this:"}}
-{{strong (italic (wrap .Analogy.Spoken))}}
+Say it like this:
+{{wrap .Analogy.Spoken}}
 
-{{head "What stands for what:"}}
-{{range .Analogy.Mappings}}- {{good .Analogy}} {{dim "->"}} {{.Real}}
+What stands for what:
+{{range .Analogy.Mappings}}- {{.Analogy}} -> {{.Real}}
 {{else}}(none)
 {{end}}
-{{head "Where it breaks:"}}
+Where it breaks:
 {{wrap .Analogy.BreaksDown}}
 
-{{dim (wrap (printf "World: %s" .Analogy.World))}}
+{{wrap (printf "World: %s" .Analogy.World)}}
 {{end}}
 
 {{define "work" -}}
 {{$s := .Skeleton -}}
-{{head "Skeleton:"}}
+Skeleton:
 
-{{sub "Players"}}
+  Players
 {{players $s.Players}}
 
 {{field "Constraint" $s.Constraint}}
@@ -25,10 +25,10 @@
 {{field "Decision" $s.Decision}}
 {{field "Point" $s.Point}}
 
-{{sub "Cause and effect"}}
+  Cause and effect
 {{steps $s.Chain}}
 
-{{head "Candidates:"}}
+Candidates:
 
 {{if .Checked -}}
 {{table .Checked}}
@@ -39,7 +39,7 @@
 {{"  (none)"}}
 {{end -}}
 {{with .Recheck}}
-{{head "Polished analogy:"}}
+Polished analogy:
 
 {{rule .}}
 {{if not .Kept}}{{spoken .Candidate.Spoken}}

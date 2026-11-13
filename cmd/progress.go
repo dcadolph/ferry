@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"charm.land/lipgloss/v2"
 	"go.uber.org/zap"
 	"golang.org/x/term"
 
@@ -44,7 +45,7 @@ type display struct {
 	terminal bool
 	// live reports whether a spinner line may redraw in place on the stream.
 	live bool
-	// style colors the text, and its On reports whether emoji are used too.
+	// style colors the text in ferry's palette, and its On reports whether emoji are used too.
 	style render.Style
 	// width is the stream's width in columns.
 	width int
@@ -225,12 +226,12 @@ func (p *progressPrinter) finish(err error) {
 	took := fmt.Sprintf(" in %s · %s", duration(p.now().Sub(p.start)), plural(p.calls, "call"))
 	switch {
 	case err == nil:
-		p.write("", s.Green(s.Bold("Done"))+s.Dim(took), "")
+		p.write("", s.Good(s.Bold("Done"))+s.Dim(took), "")
 	case errors.Is(err, engine.ErrNoFit):
-		p.write("", s.Yellow(s.Bold("Nothing held up"))+s.Dim(took), "")
+		p.write("", s.Warn(s.Bold("Nothing held up"))+s.Dim(took), "")
 	case isQuiet(err):
 	default:
-		p.write("", s.Red(s.Bold("Stopped"))+s.Dim(took))
+		p.write("", s.Bad(s.Bold("Stopped"))+s.Dim(took))
 	}
 }
 
@@ -275,11 +276,11 @@ func (p *progressPrinter) endLines(ev engine.Event, took time.Duration) []string
 				s.Dim("  "+duration(took)))
 		case engine.StatusFailed:
 			return append(p.heading(p.emoji("🔍 ")+s.Heading("Reading the situation")),
-				p.item(s.Red("✗"), "", s.Red("failed"), "", ev.Detail))
+				p.item(s.Bad("✗"), "", s.Bad("failed"), 0, ev.Detail))
 		}
 	case engine.StepDraft:
 		if ev.Status == engine.StatusFailed {
-			return []string{p.item(s.Red("✗"), ev.World, s.Red("draft failed"), "", ev.Detail)}
+			return []string{p.item(s.Bad("✗"), ev.World, s.Bad("draft failed"), 0, ev.Detail)}
 		}
 	case engine.StepCheck, engine.StepRecheck:
 		name := ev.World
@@ -288,44 +289,44 @@ func (p *progressPrinter) endLines(ev engine.Event, took time.Duration) []string
 		}
 		switch ev.Status {
 		case engine.StatusKept:
-			return []string{p.item(s.Green("✓"), name, s.Green("kept   "), fit(ev.Fit), "")}
+			return []string{p.item(s.Good("✓"), name, s.Pill(true), ev.Fit, "")}
 		case engine.StatusDropped:
-			return []string{p.item(s.Yellow("✗"), name, s.Yellow("dropped"), fit(ev.Fit), ev.Detail)}
+			return []string{p.item(s.Bad("✗"), name, s.Pill(false), ev.Fit, ev.Detail)}
 		case engine.StatusFailed:
-			return []string{p.item(s.Red("!"), name, s.Red("check failed"), "", ev.Detail)}
+			return []string{p.item(s.Warn("!"), name, s.Warn("check failed"), 0, ev.Detail)}
 		}
 	case engine.StepFinal:
 		if ev.Status == engine.StatusFailed {
-			return []string{p.item(s.Red("✗"), "", s.Red("polish failed"), "", ev.Detail)}
+			return []string{p.item(s.Bad("✗"), "", s.Bad("polish failed"), 0, ev.Detail)}
 		}
 	}
 	return nil
 }
 
 // item returns one indented item line: a mark, a padded world name, a status, a fit score, and
-// the first sentence of reason, cut to fit the width. Empty parts are left out.
-func (p *progressPrinter) item(mark, world, status, score, reason string) string {
+// the first sentence of reason, cut to fit the width. A status with a score is padded to the
+// width of the dropped pill so the scores line up. Empty parts and a score under 1 are left out.
+func (p *progressPrinter) item(mark, world, status string, score int, reason string) string {
+	s := p.d.style
 	var b strings.Builder
 	b.WriteString("  " + mark + " ")
 	cols := 4
 	if world != "" {
-		pad := worldColumn - utf8.RuneCountInString(world)
-		if pad < 1 {
-			pad = 1
-		}
+		pad := max(worldColumn-utf8.RuneCountInString(world), 1)
 		b.WriteString(world + strings.Repeat(" ", pad))
 		cols += utf8.RuneCountInString(world) + pad
 	}
 	b.WriteString(status)
-	cols += visibleLen(status)
-	if score != "" {
-		b.WriteString("  " + score)
-		cols += 2 + utf8.RuneCountInString(score)
+	cols += lipgloss.Width(status)
+	if meter := s.Meter(score); meter != "" {
+		pad := max(lipgloss.Width(s.Pill(false))-lipgloss.Width(status), 0)
+		b.WriteString(strings.Repeat(" ", pad+2) + meter)
+		cols += pad + 2 + lipgloss.Width(meter)
 	}
 	if reason = firstSentence(reason); reason != "" {
 		room := p.d.width - cols - 3
 		if room >= minReason {
-			b.WriteString("  " + p.d.style.Dim(truncate(reason, room)))
+			b.WriteString("  " + s.Dim(truncate(reason, room)))
 		}
 	}
 	return b.String()
@@ -366,7 +367,7 @@ func (p *progressPrinter) redraw() {
 	room := p.d.width - 3 - utf8.RuneCountInString(clock)
 	frame := spinFrames[p.frame%len(spinFrames)]
 	s := p.d.style
-	fmt.Fprint(p.w, clearLine+"  "+s.Cyan(frame)+" "+truncate(label, room)+s.Dim(clock))
+	fmt.Fprint(p.w, clearLine+"  "+s.Accent(frame)+" "+truncate(label, room)+s.Dim(clock))
 	p.drawn = true
 }
 
@@ -418,14 +419,6 @@ func (p *progressPrinter) emoji(e string) string {
 	return ""
 }
 
-// fit returns a fit score as "3/5", or empty when there is none.
-func fit(n int) string {
-	if n < 1 {
-		return ""
-	}
-	return strconv.Itoa(n) + "/5"
-}
-
 // firstSentence returns the first sentence of s on one line, or all of s when it has one.
 func firstSentence(s string) string {
 	s = util.CollapseSpace(s)
@@ -445,22 +438,6 @@ func truncate(s string, n int) string {
 	}
 	r := []rune(s)
 	return strings.TrimRight(string(r[:n-1]), " ,;:") + "…"
-}
-
-// visibleLen returns the number of runes in s that show on screen, leaving out ANSI codes.
-func visibleLen(s string) int {
-	n, esc := 0, false
-	for _, r := range s {
-		switch {
-		case esc:
-			esc = r != 'm'
-		case r == '\x1b':
-			esc = true
-		default:
-			n++
-		}
-	}
-	return n
 }
 
 // duration returns d for a person, e.g. "9s" or "1m 32s".

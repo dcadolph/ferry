@@ -191,7 +191,7 @@ func TestProgressPrinterLines(t *testing.T) {
 		WantResult: "  ! polished          check failed  rate limited\n",
 	}, { // Test 5: A kept check with no fit.
 		In:         engine.Event{Step: engine.StepCheck, Status: engine.StatusKept, World: "cars"},
-		WantResult: "  ✓ cars              kept   \n",
+		WantResult: "  ✓ cars              kept\n",
 	}, { // Test 6: A world name longer than the column still gets a space after it.
 		In: engine.Event{
 			Step: engine.StepCheck, Status: engine.StatusKept, World: "a very long world name", Fit: 3,
@@ -223,7 +223,8 @@ func TestProgressPrinterLines(t *testing.T) {
 	}
 }
 
-// TestProgressPrinterColor checks that color and emoji appear when the style is on.
+// TestProgressPrinterColor checks that palette colors, pills, meters, and emoji appear when the
+// style is on.
 func TestProgressPrinterColor(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
@@ -237,7 +238,10 @@ func TestProgressPrinterColor(t *testing.T) {
 	}
 	p.finish(nil)
 	got := buf.String()
-	for _, want := range []string{"🔍 ", "\x1b[32m✓\x1b[0m", "\x1b[33m✗\x1b[0m"} {
+	for _, want := range []string{
+		"🔍 ", "\x1b[38;2;34;197;94m✓\x1b[m", "\x1b[38;2;248;113;113m✗\x1b[m", "KEPT", "DROPPED",
+		"\x1b[1;38;2;34;211;238mRound 1\x1b[m", "●●●●",
+	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output lacks %q:\n%s", want, got)
 		}
@@ -330,7 +334,7 @@ func TestProgressPrinterConcurrent(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	want := strings.Repeat("  ✓ cars              kept   \n", goroutines)
+	want := strings.Repeat("  ✓ cars              kept\n", goroutines)
 	if diff := cmp.Diff(want, buf.String()); diff != "" {
 		t.Errorf("mismatch (-want +got):\n%s", diff)
 	}
@@ -343,24 +347,21 @@ func TestProgressHelpers(t *testing.T) {
 		Got  string
 		Want string
 	}{
-		{Got: fit(0), Want: ""},                                         // Test 0: No fit.
-		{Got: fit(3), Want: "3/5"},                                      // Test 1: A fit.
-		{Got: firstSentence("One. Two."), Want: "One."},                 // Test 2: First of two.
-		{Got: firstSentence("one\n  line"), Want: "one line"},           // Test 3: One sentence.
-		{Got: truncate("abcdef", 4), Want: "abc…"},                      // Test 4: Cut.
-		{Got: truncate("abc", 4), Want: "abc"},                          // Test 5: Fits.
-		{Got: truncate("ab, cd", 4), Want: "ab…"},                       // Test 6: Trailing comma.
-		{Got: truncate("abc", 0), Want: ""},                             // Test 7: No room.
-		{Got: duration(9400 * time.Millisecond), Want: "9s"},            // Test 8: Seconds.
-		{Got: duration(92 * time.Second), Want: "1m 32s"},               // Test 9: Minutes.
-		{Got: duration(61 * time.Second), Want: "1m 01s"},               // Test 10: Padding.
-		{Got: plural(1, "call"), Want: "1 call"},                        // Test 11: One.
-		{Got: plural(2, "call"), Want: "2 calls"},                       // Test 12: Many.
-		{Got: fmt.Sprint(visibleLen("\x1b[32mkept\x1b[0m")), Want: "4"}, // Test 13: Codes skipped.
-		{Got: fmt.Sprint(streamWidth(&bytes.Buffer{})), Want: "80"},     // Test 14: Not a file.
-		{Got: fmt.Sprint(canRedraw(&bytes.Buffer{})), Want: "false"},    // Test 15: Not a file.
-		{Got: fmt.Sprint(isQuiet(&QuietExitError{})), Want: "true"},     // Test 16: Quiet.
-		{Got: fmt.Sprint(isQuiet(errors.New("x"))), Want: "false"},      // Test 17: Not quiet.
+		{Got: firstSentence("One. Two."), Want: "One."},              // Test 0: First of two.
+		{Got: firstSentence("one\n  line"), Want: "one line"},        // Test 1: One sentence.
+		{Got: truncate("abcdef", 4), Want: "abc…"},                   // Test 2: Cut.
+		{Got: truncate("abc", 4), Want: "abc"},                       // Test 3: Fits.
+		{Got: truncate("ab, cd", 4), Want: "ab…"},                    // Test 4: Trailing comma.
+		{Got: truncate("abc", 0), Want: ""},                          // Test 5: No room.
+		{Got: duration(9400 * time.Millisecond), Want: "9s"},         // Test 6: Seconds.
+		{Got: duration(92 * time.Second), Want: "1m 32s"},            // Test 7: Minutes.
+		{Got: duration(61 * time.Second), Want: "1m 01s"},            // Test 8: Padding.
+		{Got: plural(1, "call"), Want: "1 call"},                     // Test 9: One.
+		{Got: plural(2, "call"), Want: "2 calls"},                    // Test 10: Many.
+		{Got: fmt.Sprint(streamWidth(&bytes.Buffer{})), Want: "80"},  // Test 11: Not a file.
+		{Got: fmt.Sprint(canRedraw(&bytes.Buffer{})), Want: "false"}, // Test 12: Not a file.
+		{Got: fmt.Sprint(isQuiet(&QuietExitError{})), Want: "true"},  // Test 13: Quiet.
+		{Got: fmt.Sprint(isQuiet(errors.New("x"))), Want: "false"},   // Test 14: Not quiet.
 	}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {

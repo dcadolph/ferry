@@ -5,6 +5,7 @@ go 1.27.3
 require (
 	charm.land/lipgloss/v2 v2.1.0
 	github.com/anthropics/anthropic-sdk-go/v2 v2.9.0
+	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.1.0
@@ -15,7 +16,6 @@ require (
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
-	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886 // indirect
 	github.com/charmbracelet/x/ansi v0.11.8 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect

@@ -99,7 +99,7 @@ func TestLayoutPlayers(t *testing.T) {
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
-			l := layout{st: NewStyle(false), cols: test.Cols}
+			l := layout{cols: test.Cols}
 			if diff := cmp.Diff(test.WantResult, l.players(test.In)); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
 			}
@@ -130,7 +130,7 @@ func TestLayoutSteps(t *testing.T) {
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
-			l := layout{st: NewStyle(false), cols: 80}
+			l := layout{cols: 80}
 			if diff := cmp.Diff(test.WantResult, l.steps(test.In)); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
 			}
@@ -154,7 +154,7 @@ func TestLayoutProblems(t *testing.T) {
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
-			l := layout{st: NewStyle(false), cols: 42}
+			l := layout{cols: 42}
 			if diff := cmp.Diff(test.WantResult, l.problems(test.In)); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
 			}

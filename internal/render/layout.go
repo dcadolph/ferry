@@ -41,17 +41,13 @@ func Width(cols int) int {
 }
 
 // Hang wraps text to cols with prefix in front of the first line and the later lines indented
-// to line up under the first line's text. The prefix is plain text, so its width counts. An
-// empty text returns the prefix with its trailing spaces cut.
+// to line up under the first line's text. An empty text returns the prefix with its trailing
+// spaces cut.
 func Hang(prefix, text string, cols int) string {
-	return hang(prefix, utf8.RuneCountInString(prefix), text, cols)
-}
-
-// hang works like Hang for a prefix that may hold color codes, given its width as seen.
-func hang(prefix string, width int, text string, cols int) string {
 	if text == "" {
 		return strings.TrimRight(prefix, " ")
 	}
+	width := utf8.RuneCountInString(prefix)
 	room := max(cols-width, minWidth/2)
 	lines := strings.Split(wrap(text, room), "\n")
 	indent := strings.Repeat(" ", width)
@@ -75,10 +71,8 @@ func padRight(s string, n int) string {
 	return s
 }
 
-// layout lays out the work section in columns for one width, colored by a Style.
+// layout lays out the plain work section in columns for one width.
 type layout struct {
-	// st colors the text.
-	st Style
 	// cols is the width lines are wrapped to.
 	cols int
 }
@@ -87,8 +81,7 @@ type layout struct {
 // in the column beside it.
 func (l layout) field(label, text string) string {
 	gap := strings.Repeat(" ", labelWidth-utf8.RuneCountInString(label))
-	prefix := pad + l.st.Cyan(label) + gap
-	return hang(prefix, len(pad)+labelWidth, text, l.cols)
+	return Hang(pad+label+gap, text, l.cols)
 }
 
 // players returns the players as two columns, names and roles. The name column fits the
@@ -108,12 +101,11 @@ func (l layout) players(ps []engine.Player) string {
 	lines := make([]string, 0, len(ps))
 	for _, p := range ps {
 		if utf8.RuneCountInString(p.Name) > nameCol {
-			role := hang(strings.Repeat(" ", width), width, p.Role, l.cols)
-			lines = append(lines, subPad+l.st.Bold(p.Name), role)
+			role := Hang(strings.Repeat(" ", width), p.Role, l.cols)
+			lines = append(lines, subPad+p.Name, role)
 			continue
 		}
-		name := l.st.Bold(p.Name) + strings.Repeat(" ", nameCol-utf8.RuneCountInString(p.Name)+2)
-		lines = append(lines, hang(subPad+name, width, p.Role, l.cols))
+		lines = append(lines, Hang(subPad+padRight(p.Name, nameCol+2), p.Role, l.cols))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -128,7 +120,7 @@ func (l layout) steps(chain []string) string {
 	lines := make([]string, len(chain))
 	for i, step := range chain {
 		num := padRight(strconv.Itoa(i+1)+".", digits+1) + " "
-		lines[i] = hang(subPad+l.st.Cyan(num), len(subPad)+len(num), step, l.cols)
+		lines[i] = Hang(subPad+num, step, l.cols)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -137,7 +129,7 @@ func (l layout) steps(chain []string) string {
 func (l layout) bullets(items []string) string {
 	lines := make([]string, len(items))
 	for i, item := range items {
-		lines[i] = hang(subPad+l.st.Red("-")+" ", len(subPad)+2, item, l.cols)
+		lines[i] = Hang(subPad+"- ", item, l.cols)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -156,43 +148,30 @@ func (l layout) table(checked []engine.Checked) string {
 		header += "Round  "
 	}
 	header += padRight("Verdict", verdictCol) + "  Fit"
-	lines := []string{l.st.Dim(header)}
+	lines := []string{header}
 	for _, c := range checked {
-		row := pad + l.st.Bold(c.Candidate.World) +
-			strings.Repeat(" ", worldCol-utf8.RuneCountInString(c.Candidate.World)+2)
+		row := pad + padRight(c.Candidate.World, worldCol) + "  "
 		if rounds {
 			row += padRight(roundText(c.Round), len("Round")) + "  "
 		}
-		row += verdict(l.st, c.Kept) + strings.Repeat(" ", verdictCol-len(verdictWord(c.Kept))) +
-			"  " + l.st.Fit(c.Verdict.Fit, fitText(c.Verdict.Fit))
+		row += padRight(verdictWord(c.Kept), verdictCol) + "  " + fitText(c.Verdict.Fit)
 		lines = append(lines, row)
 	}
 	return strings.Join(lines, "\n")
 }
 
 // rule returns a divider line that names a checked candidate: its world, its round when it has
-// one, its verdict, and its fit, followed by a line to the width. The line is green for a kept
-// candidate and yellow for a dropped one.
+// one, its verdict, and its fit, followed by a line to the width.
 func (l layout) rule(c engine.Checked) string {
 	parts := []string{c.Candidate.World}
 	if c.Round > 0 {
 		parts = append(parts, "round "+strconv.Itoa(c.Round))
 	}
 	parts = append(parts, verdictWord(c.Kept), "fit "+fitText(c.Verdict.Fit))
-	plain := strings.Join(parts, " · ")
-	shown := l.st.Bold(c.Candidate.World)
-	if c.Round > 0 {
-		shown += l.st.Dim(" · round " + strconv.Itoa(c.Round))
-	}
-	shown += l.st.Dim(" · ") + verdict(l.st, c.Kept) + l.st.Dim(" · fit ") +
-		l.st.Fit(c.Verdict.Fit, fitText(c.Verdict.Fit))
-	used := len(pad) + 3 + utf8.RuneCountInString(plain) + 1
+	label := strings.Join(parts, " · ")
+	used := len(pad) + 3 + utf8.RuneCountInString(label) + 1
 	tail := max(l.cols-used, 3)
-	line := l.st.Yellow
-	if c.Kept {
-		line = l.st.Green
-	}
-	return pad + line("── ") + shown + " " + line(strings.Repeat("─", tail))
+	return pad + "── " + label + " " + strings.Repeat("─", tail)
 }
 
 // problems returns a candidate's problems as a subheading and a dashed list, or a line that
@@ -201,12 +180,12 @@ func (l layout) problems(ps []string) string {
 	if len(ps) == 0 {
 		return subPad + "Problems: none"
 	}
-	return subPad + l.st.Label("Problems") + "\n" + l.bullets(ps)
+	return subPad + "Problems\n" + l.bullets(ps)
 }
 
 // spoken returns the spoken text of a candidate indented under its divider.
 func (l layout) spoken(s string) string {
-	return l.st.Italic(Hang(subPad, s, l.cols))
+	return Hang(subPad, s, l.cols)
 }
 
 // verdictWord returns "kept" or "dropped".

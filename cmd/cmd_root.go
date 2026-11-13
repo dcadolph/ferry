@@ -107,14 +107,24 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 	if err != nil {
 		return err
 	}
-	errTerm := terminal(stderr)
-	errStyle := render.NewStyle(render.ColorWanted(errTerm))
+	errTerm, inTerm := terminal(stderr), terminal(stdin)
+	errStyle, outStyle := styles(stdin, stdout, stderr, streams{
+		in:     inTerm,
+		errOut: render.ColorWanted(errTerm),
+		out:    !s.asJSON && render.ColorWanted(terminal(stdout)),
+	})
+	// Styled text on stderr goes through a color writer, which suits it to the terminal. The
+	// logger writes to stderr directly.
+	styledErr := stderr
+	if errStyle.On() {
+		styledErr = render.ColorWriter(stderr)
+	}
 	src := source{
 		args:     args,
 		file:     s.file,
 		stdin:    stdin,
-		terminal: terminal(stdin),
-		prompt:   stderr,
+		terminal: inTerm,
+		prompt:   styledErr,
 		style:    errStyle,
 	}
 	if err := src.check(); err != nil {
@@ -128,7 +138,7 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 	defer func() { _ = logger.Sync() }()
 	ctx = logutil.WrapLogger(ctx, logger)
 
-	if err := printReminder(stderr, errStyle); err != nil {
+	if err := printReminder(styledErr, errStyle); err != nil {
 		return fmt.Errorf("%w: privacy reminder: %w", ErrWrite, err)
 	}
 	summary, err := src.read(ctx)
@@ -140,7 +150,7 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 		return fmt.Errorf("%w: %w", ErrClient, err)
 	}
 	cfg := engine.DefaultConfig()
-	prog := progressFunc(stderr, display{
+	prog := progressFunc(styledErr, display{
 		terminal: errTerm,
 		live:     errTerm && canRedraw(stderr),
 		style:    errStyle,
@@ -158,13 +168,7 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 	)
 	res, err := engine.NewWithConfig(completer, cfg).Run(ctx, s.input(summary))
 	prog.finish(interrupted(ctx, err))
-	out := output{
-		style: render.NewStyle(!s.asJSON && render.ColorWanted(terminal(stdout))),
-		cols:  render.Width(streamWidth(stdout)),
-	}
-	if out.style.On() && src.terminal {
-		out.style = out.style.OnLight(!darkBackground(stdin, stdout))
-	}
+	out := output{style: outStyle, cols: render.Width(streamWidth(stdout))}
 	if err != nil {
 		return runFailed(ctx, stdout, res, s, out, err)
 	}
@@ -185,6 +189,32 @@ type output struct {
 	style render.Style
 	// cols is the width the text is wrapped to.
 	cols int
+}
+
+// streams holds which standard streams are terminals or get color.
+type streams struct {
+	// in reports whether stdin is a terminal.
+	in bool
+	// errOut reports whether stderr gets color.
+	errOut bool
+	// out reports whether stdout gets color.
+	out bool
+}
+
+// styles returns the styles for stderr and stdout. When either gets color and stdin is a
+// terminal, it asks the terminal for its background once, through the colored stream, and
+// shades both styles for it. Otherwise both assume a dark background.
+func styles(stdin, stdout, stderr any, on streams) (render.Style, render.Style) {
+	errStyle, outStyle := render.NewStyle(on.errOut), render.NewStyle(on.out)
+	if !on.in || (!on.errOut && !on.out) {
+		return errStyle, outStyle
+	}
+	probe := stdout
+	if on.errOut {
+		probe = stderr
+	}
+	light := !darkBackground(stdin, probe)
+	return errStyle.OnLight(light), outStyle.OnLight(light)
 }
 
 // darkBackground reports whether the terminal behind in and out has a dark background. The

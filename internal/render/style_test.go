@@ -7,8 +7,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// TestStyle checks that each style wraps every non-empty line when on and passes text through
-// when off.
+// TestStyle checks that each style passes text through when off, and when on renders every
+// non-empty line in the palette color for the background.
 func TestStyle(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -16,39 +16,76 @@ func TestStyle(t *testing.T) {
 		WantResult string
 		In         string
 		On         bool
+		Light      bool
 	}{{ // Test 0: Off leaves text alone.
-		Fn: func(s Style) func(string) string { return s.Green }, In: "kept",
+		Fn: func(s Style) func(string) string { return s.Good }, In: "kept",
 		WantResult: "kept",
-	}, { // Test 1: Green on one line.
-		Fn: func(s Style) func(string) string { return s.Green }, In: "kept", On: true,
-		WantResult: "\x1b[32mkept\x1b[0m",
-	}, { // Test 2: Each line gets its own codes, and empty lines stay empty.
+	}, { // Test 1: Good on a dark background.
+		Fn: func(s Style) func(string) string { return s.Good }, In: "kept", On: true,
+		WantResult: "\x1b[38;2;34;197;94mkept\x1b[m",
+	}, { // Test 2: Good on a light background takes the darker shade.
+		Fn: func(s Style) func(string) string { return s.Good }, In: "kept", On: true, Light: true,
+		WantResult: "\x1b[38;2;21;128;61mkept\x1b[m",
+	}, { // Test 3: Each line gets its own codes, and empty lines stay empty.
 		Fn: func(s Style) func(string) string { return s.Dim }, In: "a\n\nb", On: true,
-		WantResult: "\x1b[2ma\x1b[0m\n\n\x1b[2mb\x1b[0m",
-	}, { // Test 3: Empty text stays empty.
-		Fn: func(s Style) func(string) string { return s.Red }, In: "", On: true,
+		WantResult: "\x1b[38;2;156;163;175ma\x1b[m\n\n\x1b[38;2;156;163;175mb\x1b[m",
+	}, { // Test 4: Empty text stays empty.
+		Fn: func(s Style) func(string) string { return s.Bad }, In: "", On: true,
 		WantResult: "",
-	}, { // Test 4: Heading is bold cyan.
+	}, { // Test 5: Heading is bold accent2.
 		Fn: func(s Style) func(string) string { return s.Heading }, In: "Say it", On: true,
-		WantResult: "\x1b[1m\x1b[36mSay it\x1b[0m",
-	}, { // Test 5: Bold.
+		WantResult: "\x1b[1;38;2;34;211;238mSay it\x1b[m",
+	}, { // Test 6: Bold.
 		Fn: func(s Style) func(string) string { return s.Bold }, In: "x", On: true,
-		WantResult: "\x1b[1mx\x1b[0m",
-	}, { // Test 6: Yellow.
-		Fn: func(s Style) func(string) string { return s.Yellow }, In: "x", On: true,
-		WantResult: "\x1b[33mx\x1b[0m",
-	}, { // Test 7: Cyan.
-		Fn: func(s Style) func(string) string { return s.Cyan }, In: "x", On: true,
-		WantResult: "\x1b[36mx\x1b[0m",
-	}, { // Test 8: Red.
-		Fn: func(s Style) func(string) string { return s.Red }, In: "x", On: true,
-		WantResult: "\x1b[31mx\x1b[0m",
+		WantResult: "\x1b[1mx\x1b[m",
+	}, { // Test 7: Warn.
+		Fn: func(s Style) func(string) string { return s.Warn }, In: "x", On: true,
+		WantResult: "\x1b[38;2;251;191;36mx\x1b[m",
+	}, { // Test 8: Bad.
+		Fn: func(s Style) func(string) string { return s.Bad }, In: "x", On: true,
+		WantResult: "\x1b[38;2;248;113;113mx\x1b[m",
+	}, { // Test 9: Accent.
+		Fn: func(s Style) func(string) string { return s.Accent }, In: "x", On: true,
+		WantResult: "\x1b[38;2;167;139;250mx\x1b[m",
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
-			got := test.Fn(NewStyle(test.On))(test.In)
+			got := test.Fn(NewStyle(test.On).OnLight(test.Light))(test.In)
 			if diff := cmp.Diff(test.WantResult, got); diff != "" {
+				t.Errorf("mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestStylePillMeter checks the pill and the fit meter with color on and off.
+func TestStylePillMeter(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		Got        string
+		WantResult string
+	}{{ // Test 0: Kept pill, plain.
+		Got: NewStyle(false).Pill(true), WantResult: "kept",
+	}, { // Test 1: Dropped pill, plain.
+		Got: NewStyle(false).Pill(false), WantResult: "dropped",
+	}, { // Test 2: Kept pill, styled, padded on both sides.
+		Got: testStrip(NewStyle(true).Pill(true)), WantResult: " KEPT ",
+	}, { // Test 3: Dropped pill, styled.
+		Got: testStrip(NewStyle(true).Pill(false)), WantResult: " DROPPED ",
+	}, { // Test 4: Meter, plain.
+		Got: NewStyle(false).Meter(4), WantResult: "4/5",
+	}, { // Test 5: Meter, styled.
+		Got: testStrip(NewStyle(true).Meter(4)), WantResult: "●●●●○ 4/5",
+	}, { // Test 6: No score, plain.
+		Got: NewStyle(false).Meter(0), WantResult: "",
+	}, { // Test 7: No score, styled.
+		Got: NewStyle(true).Meter(0), WantResult: "",
+	}}
+	for testNum, test := range tests {
+		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
+			t.Parallel()
+			if diff := cmp.Diff(test.WantResult, test.Got); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
 			}
 		})

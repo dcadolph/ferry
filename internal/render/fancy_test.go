@@ -106,7 +106,7 @@ func TestMeter(t *testing.T) {
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
-			got := testStrip(newFancy(80, true).meter(test.In))
+			got := testStrip(newPalette(true).meter(test.In))
 			if diff := cmp.Diff(test.WantResult, got); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
 			}
