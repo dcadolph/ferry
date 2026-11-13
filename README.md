@@ -44,25 +44,48 @@ has no subcommands, so every argument is summary text, and a summary that starts
 sends all of it or none of it, and it turns away a summary that holds one of the tags it uses to
 mark its own text in a prompt, such as `</summary>`.
 
-The output looks like this:
+Here is a real run, unedited:
+
+```sh
+ferry --model claude-opus-5-5 "Our community garden's shared water pump keeps breaking. Each
+time, whoever is there patches it with tape, which takes ten minutes. A proper replacement costs
+four hundred dollars and a weekend of work, and nobody wants to organize the collection. The
+patches fail more often now, and two plots died in the last heat wave. I want the garden
+committee to approve the replacement this month."
+```
 
 ```text
 Say it like this:
-We keep topping off the oil every morning instead of fixing the leak. The engine
-still runs, but each quart costs a little more, and one day the leak wins. Let's
-put the car on the lift this week.
+It's like a shed roof a few neighbors share. Every time it leaks, whoever's
+around climbs up and dabs on some tar, because that takes ten minutes and nobody
+has to pass the hat for a real repair. But the patches give out sooner each
+time, and in the last big storm two neighbors had everything they kept in there
+ruined, so we can keep dabbing tar and wait for the next storm, or chip in once
+this month and fix the roof.
 
 What stands for what:
-- topping off the oil -> restarting the service each morning
-- the leak -> the memory bug
-- putting the car on the lift -> one engineer for a week on the fix
+- the neighbors who share the shed and dab tar on the roof whenever it leaks while they happen to be around -> the gardeners who share the pump and tape it whenever it breaks while they happen to be there
+- the neighbors sitting down together and agreeing to chip in for a real repair -> the garden committee that can approve the pump replacement
+- the shared shed roof that keeps everyone's things dry -> the shared pump that waters every plot
+- the neighbor asking the others to fix the roof properly -> the speaker asking the committee to replace the pump
+- a ten-minute dab of tar versus a real repair that costs a few hundred dollars, takes a weekend, and needs someone to pass the hat -> a ten-minute tape patch versus a four-hundred-dollar, weekend-long replacement that needs someone to organize the collection
+- tar is quick and needs no organizing but gives out sooner each time and leaves things exposed in a storm; a real repair costs money, a weekend, and someone collecting, but stops the leaks -> tape is quick and needs no organizing but fails more often and leaves plots dry in the heat; replacement costs money, a weekend, and organizing, but ends the breakdowns
+- the big storm when a patch gives out and water pours in -> the heat wave when a patch fails and plots go without water
+- two neighbors whose stored things were ruined in the last storm -> two plots that died in the last heat wave
+- the next storm, when more neighbors lose what's inside if the roof is still just tarred -> the next heat wave, when more plots can die if the pump is still just taped
+- keep dabbing tar, or chip in once this month and fix the roof -> keep taping the pump, or approve the replacement this month
 
 Where it breaks:
-A leak drips at a steady rate, but our crashes come in bursts after big
-releases.
+Ruined boxes and tools can mostly be bought again, but a dead plot is a whole
+season of someone's work gone for good, so the real loss is worse than the shed
+version makes it sound. Name that first, then say the actual number plainly: the
+real fix is four hundred dollars.
 
-World: cars
+World: construction
 ```
+
+That run made 11 calls in 93 seconds at `--effort high`. It drafted four worlds, kept only
+construction, and the final check still flagged that no committee appears in the shed story.
 
 At a terminal, ferry also prints each step on stderr as it happens. Away from a terminal it
 stays quiet, apart from a warning when a draft or a check fails. When the analogy it prints is
