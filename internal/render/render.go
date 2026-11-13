@@ -1,4 +1,4 @@
-// Package render formats an engine result as plain text for the terminal.
+// Package render formats an engine result as text for the terminal, colored when wanted.
 package render
 
 import (
@@ -30,23 +30,43 @@ const (
 //go:embed text.tmpl
 var textSource string
 
-// textTemplate is the parsed set of text output templates.
-var textTemplate = template.Must(template.New("text").Funcs(template.FuncMap{
-	"wrap": func(s string) string { return wrap(s, width) },
-	"inc":  util.Inc,
-}).Parse(textSource))
+// textTemplate parses the text output templates with the funcs of st.
+func textTemplate(st Style) (*template.Template, error) {
+	return template.New("text").Funcs(template.FuncMap{
+		"wrap":    func(s string) string { return wrap(s, width) },
+		"inc":     util.Inc,
+		"head":    st.Heading,
+		"strong":  st.Bold,
+		"dim":     st.Dim,
+		"good":    st.Green,
+		"warn":    st.Yellow,
+		"verdict": func(kept bool) string { return verdict(st, kept) },
+	}).Parse(textSource)
+}
 
-// Text writes res to w as plain text: the spoken analogy, what stands for what, where it
-// breaks, and its world. With showWork it adds a blank line and the work that Work prints.
+// verdict returns "kept" in green or "dropped" in yellow.
+func verdict(st Style, kept bool) string {
+	if kept {
+		return st.Green("kept")
+	}
+	return st.Yellow("dropped")
+}
+
+// Text writes res to w as text, colored by st: the spoken analogy, what stands for what, where
+// it breaks, and its world. With showWork it adds a blank line and the work that Work prints.
 // Nothing is written when a template fails.
-func Text(w io.Writer, res engine.Result, showWork bool) error {
+func Text(w io.Writer, res engine.Result, showWork bool, st Style) error {
+	t, err := textTemplate(st)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrRender, err)
+	}
 	var buf bytes.Buffer
-	if err := textTemplate.ExecuteTemplate(&buf, analogyPart, res); err != nil {
+	if err := t.ExecuteTemplate(&buf, analogyPart, res); err != nil {
 		return fmt.Errorf("%w: %w", ErrRender, err)
 	}
 	if showWork {
 		buf.WriteByte('\n')
-		if err := textTemplate.ExecuteTemplate(&buf, workPart, res); err != nil {
+		if err := t.ExecuteTemplate(&buf, workPart, res); err != nil {
 			return fmt.Errorf("%w: %w", ErrRender, err)
 		}
 	}
@@ -57,10 +77,15 @@ func Text(w io.Writer, res engine.Result, showWork bool) error {
 // world, round, verdict, fit, spoken text, and problems, and the check of the polished analogy
 // when the run got that far. A polished text that did not pass is printed there, since the
 // analogy in the result is then the checked draft. Work suits a run where no analogy held up,
-// since it leaves out the missing winner. Nothing is written when the template fails.
-func Work(w io.Writer, res engine.Result) error {
+// since it leaves out the missing winner. The text is colored by st. Nothing is written when
+// the template fails.
+func Work(w io.Writer, res engine.Result, st Style) error {
+	t, err := textTemplate(st)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrRender, err)
+	}
 	var buf bytes.Buffer
-	if err := textTemplate.ExecuteTemplate(&buf, workPart, res); err != nil {
+	if err := t.ExecuteTemplate(&buf, workPart, res); err != nil {
 		return fmt.Errorf("%w: %w", ErrRender, err)
 	}
 	return flush(w, &buf)

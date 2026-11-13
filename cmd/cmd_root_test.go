@@ -831,40 +831,59 @@ func TestRootTerminal(t *testing.T) {
 		Args       []string
 		WantPrompt int
 		WantLines  []string
-	}{{ // Test 0: A typed summary gets the prompt and a line for every step.
+		Color      bool
+	}{{ // Test 0: A typed summary gets the prompt, a line break after the typing, and a line
+		// for every finished step.
 		Stdin: testSummary, WantPrompt: 1,
 		WantLines: []string{
-			"Reading the situation\n", "Drafting from cars\n", "Checking the sports draft\n",
-			"cars: kept, fit 4\n", "kitchens: kept, fit 4\n", "Polishing the cars analogy\n",
-			"Checking the polished analogy\n", "Polished analogy: kept, fit 4\n",
+			promptText + "\n\n", "\nRead the situation  0s\n",
+			"\nRound 1  drafting from several worlds\n",
+			"  ✓ cars              kept     4/5\n", "  ✓ kitchens          kept     4/5\n",
+			"\nPolishing the cars analogy\n", "  ✓ polished          kept     4/5\n",
+			"\nDone in 0s · 11 calls\n\n",
 		},
 	}, { // Test 1: A summary given as arguments gets the progress lines and no prompt.
 		Args: []string{testSummary}, WantPrompt: 0,
-		WantLines: []string{"Reading the situation\n", "cars: kept, fit 4\n"},
+		WantLines: []string{"\nRead the situation  0s\n", "  ✓ cars              kept     4/5\n"},
+	}, { // Test 2: With color wanted, stderr and stdout carry color and the occasional emoji.
+		Args: []string{testSummary}, Color: true,
+		WantLines: []string{"🔒 ", "🔍 ", "🎨 ", "✨ ", "🏁 ", "\x1b[32m✓\x1b[0m"},
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			cli := newTestCLI(t)
 			cli.Terminal = true
+			t.Setenv("TERM", "xterm-256color")
+			if test.Color {
+				t.Setenv("NO_COLOR", "")
+			} else {
+				t.Setenv("NO_COLOR", "1")
+			}
 			model := &testModel{Replies: testReplies(t, testVerdict(true))}
 			if err := cli.run(t.Context(), model, test.Stdin, test.Args...); err != nil {
 				t.Fatalf("run: %v", err)
 			}
+			errOut := cli.Stderr.String()
+			for _, want := range test.WantLines {
+				if !strings.Contains(errOut, want) {
+					t.Errorf("stderr lacks %q:\n%s", want, errOut)
+				}
+			}
+			if test.Color {
+				if !strings.Contains(cli.Stdout.String(), "\x1b[1m\x1b[36mSay it like this:") {
+					t.Errorf("stdout is not colored:\n%q", cli.Stdout.String())
+				}
+				return
+			}
 			if diff := cmp.Diff(testText+"World: cars\n", cli.Stdout.String()); diff != "" {
 				t.Errorf("stdout mismatch (-want +got):\n%s", diff)
 			}
-			errOut := cli.Stderr.String()
 			if !strings.HasPrefix(errOut, reminder+"\n") {
 				t.Errorf("stderr does not start with the reminder:\n%s", errOut)
 			}
 			prompts := strings.Count(errOut, promptText+"\n")
 			if diff := cmp.Diff(test.WantPrompt, prompts); diff != "" {
 				t.Errorf("prompt count mismatch (-want +got):\n%s", diff)
-			}
-			for _, want := range test.WantLines {
-				if !strings.Contains(errOut, want) {
-					t.Errorf("stderr lacks %q:\n%s", want, errOut)
-				}
 			}
 		})
 	}

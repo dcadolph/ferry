@@ -105,12 +105,15 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 	if err != nil {
 		return err
 	}
+	errTerm := terminal(stderr)
+	errStyle := render.NewStyle(render.ColorWanted(errTerm))
 	src := source{
 		args:     args,
 		file:     s.file,
 		stdin:    stdin,
 		terminal: terminal(stdin),
 		prompt:   stderr,
+		style:    errStyle,
 	}
 	if err := src.check(); err != nil {
 		return err
@@ -123,7 +126,7 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 	defer func() { _ = logger.Sync() }()
 	ctx = logutil.WrapLogger(ctx, logger)
 
-	if err := printReminder(stderr); err != nil {
+	if err := printReminder(stderr, errStyle); err != nil {
 		return fmt.Errorf("%w: privacy reminder: %w", ErrWrite, err)
 	}
 	summary, err := src.read(ctx)
@@ -135,7 +138,13 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 		return fmt.Errorf("%w: %w", ErrClient, err)
 	}
 	cfg := engine.DefaultConfig()
-	cfg.Progress = progressFunc(stderr, terminal(stderr), logger)
+	prog := progressFunc(stderr, display{
+		terminal: errTerm,
+		live:     errTerm && canRedraw(stderr),
+		style:    errStyle,
+		width:    streamWidth(stderr),
+	}, logger)
+	cfg.Progress = prog.report
 	start := time.Now()
 	logger.Debug("run started",
 		zap.String("model", s.model),
@@ -146,8 +155,10 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 		zap.Int("summary_bytes", len(summary)),
 	)
 	res, err := engine.NewWithConfig(completer, cfg).Run(ctx, s.input(summary))
+	prog.finish(interrupted(ctx, err))
+	outStyle := render.NewStyle(!s.asJSON && render.ColorWanted(terminal(stdout)))
 	if err != nil {
-		return runFailed(ctx, stdout, res, s, err)
+		return runFailed(ctx, stdout, res, s, outStyle, err)
 	}
 	logger.Debug("run finished",
 		zap.Int("rounds", res.Rounds),
@@ -157,7 +168,7 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 		zap.Duration("elapsed", time.Since(start)),
 	)
 	printNote(stderr, res.Note)
-	return writeResult(stdout, res, s)
+	return writeResult(stdout, res, s, outStyle)
 }
 
 // printNote writes the engine's note about the result to w as one "ferry: note:" line, when
@@ -181,7 +192,7 @@ func interrupted(ctx context.Context, err error) error {
 // first prints the work that was paid for to w, with or without --show-work: the skeleton and
 // every candidate as text, or the partial result as JSON. The user sees why each candidate was
 // dropped without running again.
-func runFailed(ctx context.Context, w io.Writer, res engine.Result, s settings, err error) error {
+func runFailed(ctx context.Context, w io.Writer, res engine.Result, s settings, st render.Style, err error) error {
 	err = interrupted(ctx, err)
 	if !errors.Is(err, engine.ErrNoFit) {
 		return err
@@ -190,7 +201,7 @@ func runFailed(ctx context.Context, w io.Writer, res engine.Result, s settings, 
 	if s.asJSON {
 		werr = writeJSON(w, res, s.pretty)
 	} else {
-		werr = render.Work(w, res)
+		werr = render.Work(w, res, st)
 	}
 	if werr != nil {
 		return errors.Join(err, werr)
@@ -198,12 +209,12 @@ func runFailed(ctx context.Context, w io.Writer, res engine.Result, s settings, 
 	return err
 }
 
-// writeResult prints res to w as JSON or as text, as the settings ask.
-func writeResult(w io.Writer, res engine.Result, s settings) error {
+// writeResult prints res to w as JSON or as text, as the settings ask. Text is colored by st.
+func writeResult(w io.Writer, res engine.Result, s settings, st render.Style) error {
 	if s.asJSON {
 		return writeJSON(w, res, s.pretty)
 	}
-	return render.Text(w, res, s.showWork)
+	return render.Text(w, res, s.showWork, st)
 }
 
 // writeJSON prints res to w as one JSON value and a newline, indented when pretty is set.

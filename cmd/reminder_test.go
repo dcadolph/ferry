@@ -10,6 +10,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/dcadolph/ferry/internal/render"
 )
 
 // TestReminder checks that the privacy reminder makes each promise it has to make, never
@@ -60,7 +62,7 @@ func TestPrintReminder(t *testing.T) {
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
-			if err := printReminder(test.W); !errors.Is(err, test.Want) {
+			if err := printReminder(test.W, render.NewStyle(false)); !errors.Is(err, test.Want) {
 				t.Fatalf("error = %v, want %v", err, test.Want)
 			}
 			if b, ok := test.W.(*bytes.Buffer); ok {

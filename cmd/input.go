@@ -11,6 +11,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/dcadolph/ferry/internal/engine"
+	"github.com/dcadolph/ferry/internal/render"
 )
 
 // Limits and prompts for reading the summary.
@@ -38,6 +39,8 @@ type source struct {
 	terminal bool
 	// prompt receives the prompt line when ferry waits for typed input.
 	prompt io.Writer
+	// style colors the prompt line.
+	style render.Style
 }
 
 // check returns a usage error when the summary is given both as arguments and with --file.
@@ -69,11 +72,16 @@ func (s source) read(ctx context.Context) (string, error) {
 		text = string(b)
 	default:
 		if s.terminal {
-			fmt.Fprintln(s.prompt, promptText)
+			fmt.Fprintln(s.prompt, s.style.Bold(promptText))
 		}
 		b, err := readStream(ctx, s.stdin)
 		if err != nil {
 			return "", err
+		}
+		// Ctrl-D in the middle of a line ends the input with no line break, which would leave
+		// the next output on the same line as the typed text.
+		if s.terminal && len(b) > 0 && b[len(b)-1] != '\n' {
+			fmt.Fprintln(s.prompt)
 		}
 		text = string(b)
 	}

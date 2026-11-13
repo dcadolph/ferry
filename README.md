@@ -87,8 +87,9 @@ World: construction
 That run made 11 calls in 93 seconds at `--effort high`. It drafted four worlds, kept only
 construction, and the final check still flagged that no committee appears in the shed story.
 
-At a terminal, ferry also prints each step on stderr as it happens. Away from a terminal it
-stays quiet, apart from a warning when a draft or a check fails. When the analogy it prints is
+At a terminal, ferry also prints each step on stderr as it happens, with a live line for the
+calls still running, and colors the result. Set `NO_COLOR` to turn color and emoji off. Away from
+a terminal it stays quiet, apart from a warning when a draft or a check fails. When the analogy it prints is
 not a polished one that met every rule, it says why in a line on stderr that starts with
 `ferry: note:`, and `--json` output carries the same text in `note`.
 

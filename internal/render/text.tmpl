@@ -1,20 +1,20 @@
 {{define "analogy" -}}
-Say it like this:
-{{wrap .Analogy.Spoken}}
+{{head "Say it like this:"}}
+{{strong (wrap .Analogy.Spoken)}}
 
-What stands for what:
-{{range .Analogy.Mappings}}- {{.Analogy}} -> {{.Real}}
+{{head "What stands for what:"}}
+{{range .Analogy.Mappings}}- {{.Analogy}} {{dim "->"}} {{.Real}}
 {{else}}(none)
 {{end}}
-Where it breaks:
+{{head "Where it breaks:"}}
 {{wrap .Analogy.BreaksDown}}
 
-{{wrap (printf "World: %s" .Analogy.World)}}
+{{dim (wrap (printf "World: %s" .Analogy.World))}}
 {{end}}
 
 {{define "work" -}}
 {{$s := .Skeleton -}}
-Skeleton:
+{{head "Skeleton:"}}
 Players:
 {{range $s.Players}}- {{.Name}}: {{.Role}}
 {{else}}(none)
@@ -28,13 +28,13 @@ Cause and effect:
 {{range $i, $step := $s.Chain}}{{inc $i}}. {{$step}}
 {{else}}(none)
 {{end}}
-Candidates:
+{{head "Candidates:"}}
 {{range $i, $c := .Checked -}}
 {{if $i}}
 {{end -}}
 {{$c.Candidate.World}}
 {{- if $c.Round}} (round {{$c.Round}}){{end -}}
-: {{if $c.Kept}}kept{{else}}dropped{{end}}, fit {{$c.Verdict.Fit}}
+: {{verdict $c.Kept}}, fit {{$c.Verdict.Fit}}
 {{wrap $c.Candidate.Spoken}}
 {{if $c.Verdict.Problems -}}
 Problems:
@@ -47,7 +47,7 @@ Problems: none
 (none)
 {{end -}}
 {{with .Recheck}}
-Polished analogy: {{if .Kept}}kept{{else}}dropped{{end}}, fit {{.Verdict.Fit}}
+{{head "Polished analogy:"}} {{verdict .Kept}}, fit {{.Verdict.Fit}}
 {{if not .Kept -}}
 {{wrap .Candidate.Spoken}}
 {{end -}}

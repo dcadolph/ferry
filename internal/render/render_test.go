@@ -240,7 +240,7 @@ func TestText(t *testing.T) {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
-			if err := Text(&buf, test.In, test.ShowWork); err != nil {
+			if err := Text(&buf, test.In, test.ShowWork, NewStyle(false)); err != nil {
 				t.Fatalf("Text: %v", err)
 			}
 			if diff := cmp.Diff(test.WantResult, buf.String()); diff != "" {
@@ -277,7 +277,7 @@ func TestWork(t *testing.T) {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
-			if err := Work(&buf, test.In); err != nil {
+			if err := Work(&buf, test.In, NewStyle(false)); err != nil {
 				t.Fatalf("Work: %v", err)
 			}
 			if diff := cmp.Diff(test.WantResult, buf.String()); diff != "" {
@@ -294,9 +294,9 @@ func TestWriteError(t *testing.T) {
 		Write func() error
 		Want  error
 	}{{ // Test 0: Text.
-		Write: func() error { return Text(testFailWriter{}, testResult(), true) }, Want: ErrWrite,
+		Write: func() error { return Text(testFailWriter{}, testResult(), true, NewStyle(false)) }, Want: ErrWrite,
 	}, { // Test 1: Work.
-		Write: func() error { return Work(testFailWriter{}, testResult()) }, Want: ErrWrite,
+		Write: func() error { return Work(testFailWriter{}, testResult(), NewStyle(false)) }, Want: ErrWrite,
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {

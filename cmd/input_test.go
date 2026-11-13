@@ -58,58 +58,62 @@ func TestSourceRead(t *testing.T) {
 		File: stdinPath, Stdin: strings.NewReader("from stdin\n"), WantResult: "from stdin",
 	}, { // Test 3: Piped stdin is read without a prompt.
 		Stdin: strings.NewReader("piped text"), WantResult: "piped text",
-	}, { // Test 4: A terminal gets the prompt before the read.
+	}, { // Test 4: A terminal gets the prompt before the read, and a line break after typing
+		// that ended mid-line.
 		Stdin: strings.NewReader("typed text"), Terminal: true,
+		WantResult: "typed text", WantPrompt: promptText + "\n\n",
+	}, { // Test 5: Typed text that ends in a line break gets no extra one.
+		Stdin: strings.NewReader("typed text\n"), Terminal: true,
 		WantResult: "typed text", WantPrompt: promptText + "\n",
-	}, { // Test 5: Arguments win over stdin.
+	}, { // Test 6: Arguments win over stdin.
 		Args: []string{"from", "args"}, Stdin: strings.NewReader("ignored"),
 		WantResult: "from args",
-	}, { // Test 6: Arguments and a file together are a usage error.
+	}, { // Test 7: Arguments and a file together are a usage error.
 		Args: []string{"x"}, File: file, Want: ErrUsage,
-	}, { // Test 7: Empty stdin has no summary.
+	}, { // Test 8: Empty stdin has no summary.
 		Stdin: strings.NewReader(""), Want: engine.ErrNoSummary,
-	}, { // Test 8: Whitespace alone has no summary.
+	}, { // Test 9: Whitespace alone has no summary.
 		Stdin: strings.NewReader(" \n\t "), Want: engine.ErrNoSummary,
-	}, { // Test 9: An empty argument has no summary.
+	}, { // Test 10: An empty argument has no summary.
 		Args: []string{""}, Want: engine.ErrNoSummary,
-	}, { // Test 10: Arguments over the limit are rejected.
+	}, { // Test 11: Arguments over the limit are rejected.
 		Args: []string{long}, Want: ErrInputTooLong,
-	}, { // Test 11: A file over the limit is rejected.
+	}, { // Test 12: A file over the limit is rejected.
 		File: longFile, Want: ErrInputTooLong,
-	}, { // Test 12: Stdin over the limit is rejected.
+	}, { // Test 13: Stdin over the limit is rejected.
 		Stdin: strings.NewReader(long), Want: ErrInputTooLong,
-	}, { // Test 13: A summary exactly at the limit passes whole.
+	}, { // Test 14: A summary exactly at the limit passes whole.
 		Stdin: strings.NewReader(atLimit), WantResult: atLimit,
-	}, { // Test 14: Surrounding whitespace does not count toward the limit.
+	}, { // Test 15: Surrounding whitespace does not count toward the limit.
 		Stdin: strings.NewReader("\n" + atLimit + "\n"), WantResult: atLimit,
-	}, { // Test 15: Stdin far past the read cap is rejected, not cut.
+	}, { // Test 16: Stdin far past the read cap is rejected, not cut.
 		Stdin: strings.NewReader(strings.Repeat("c", readCap+10)), Want: ErrInputTooLong,
-	}, { // Test 16: A missing file is a read error.
+	}, { // Test 17: A missing file is a read error.
 		File: filepath.Join(dir, "missing.txt"), Want: ErrRead,
-	}, { // Test 17: A failing stdin is a read error.
+	}, { // Test 18: A failing stdin is a read error.
 		Stdin: iotest.ErrReader(errors.New("broken pipe")), Want: ErrRead,
-	}, { // Test 18: A directory is a read error.
+	}, { // Test 19: A directory is a read error.
 		File: dir, Want: ErrRead,
-	}, { // Test 19: A file with blank space past the read cap and more text after it is
+	}, { // Test 20: A file with blank space past the read cap and more text after it is
 		// rejected, though the text before the cap is short.
 		File: paddedFile, Want: ErrInputTooLong,
-	}, { // Test 20: The same input on stdin is rejected too.
+	}, { // Test 21: The same input on stdin is rejected too.
 		Stdin: strings.NewReader(padded), Want: ErrInputTooLong,
-	}, { // Test 21: A file exactly at the read cap is read whole.
+	}, { // Test 22: A file exactly at the read cap is read whole.
 		File: atCapFile, WantResult: head,
-	}, { // Test 22: Stdin exactly at the read cap is read whole.
+	}, { // Test 23: Stdin exactly at the read cap is read whole.
 		Stdin: strings.NewReader(atCap), WantResult: head,
-	}, { // Test 23: One byte past the read cap is rejected, even when that byte is blank.
+	}, { // Test 24: One byte past the read cap is rejected, even when that byte is blank.
 		Stdin: strings.NewReader(atCap + "\n"), Want: ErrInputTooLong,
-	}, { // Test 24: A file in another encoding is a usage error.
+	}, { // Test 25: A file in another encoding is a usage error.
 		File: latinFile, Want: ErrUsage,
-	}, { // Test 25: Stdin that is not valid UTF-8 is a usage error.
+	}, { // Test 26: Stdin that is not valid UTF-8 is a usage error.
 		Stdin: strings.NewReader("ok \xff\xfe then \xc3\x28"), Want: ErrUsage,
-	}, { // Test 26: An argument that is not valid UTF-8 is a usage error.
+	}, { // Test 27: An argument that is not valid UTF-8 is a usage error.
 		Args: []string{"the", "caf\xe9"}, Want: ErrUsage,
-	}, { // Test 27: A NUL byte is a usage error.
+	}, { // Test 28: A NUL byte is a usage error.
 		Stdin: strings.NewReader("the service\x00crashes"), Want: ErrUsage,
-	}, { // Test 28: Text outside ASCII that is valid UTF-8 passes whole.
+	}, { // Test 29: Text outside ASCII that is valid UTF-8 passes whole.
 		Stdin:      strings.NewReader("Le caf\u00e9 d\u00e9borde. \u6f0f\u308c\u308b\u3002"),
 		WantResult: "Le caf\u00e9 d\u00e9borde. \u6f0f\u308c\u308b\u3002",
 	}}
