@@ -237,7 +237,7 @@ func TestProgressPrinterColor(t *testing.T) {
 	}
 	p.finish(nil)
 	got := buf.String()
-	for _, want := range []string{"🔍 ", "🎨 ", "🔁 ", "✨ ", "🏁 ", "\x1b[32m✓\x1b[0m", "\x1b[33m✗\x1b[0m"} {
+	for _, want := range []string{"🔍 ", "\x1b[32m✓\x1b[0m", "\x1b[33m✗\x1b[0m"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output lacks %q:\n%s", want, got)
 		}

@@ -93,7 +93,7 @@ func TestReport(t *testing.T) {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
-			code := report(&buf, test.In)
+			code := report(&buf, test.In, 0)
 			if diff := cmp.Diff(test.WantResult, buf.String()); diff != "" {
 				t.Errorf("message mismatch (-want +got):\n%s", diff)
 			}

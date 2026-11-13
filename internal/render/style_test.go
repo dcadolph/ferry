@@ -109,10 +109,10 @@ func TestTextColor(t *testing.T) {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
 			var plain, colored bytes.Buffer
-			if err := Text(&plain, res, test.ShowWork, NewStyle(false)); err != nil {
+			if err := Text(&plain, res, test.ShowWork, NewStyle(false), 80); err != nil {
 				t.Fatalf("Text plain: %v", err)
 			}
-			if err := Text(&colored, res, test.ShowWork, NewStyle(true)); err != nil {
+			if err := Text(&colored, res, test.ShowWork, NewStyle(true), 80); err != nil {
 				t.Fatalf("Text colored: %v", err)
 			}
 			got := colored.String()

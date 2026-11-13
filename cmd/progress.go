@@ -225,7 +225,7 @@ func (p *progressPrinter) finish(err error) {
 	took := fmt.Sprintf(" in %s · %s", duration(p.now().Sub(p.start)), plural(p.calls, "call"))
 	switch {
 	case err == nil:
-		p.write("", p.emoji("🏁 ")+s.Green(s.Bold("Done"))+s.Dim(took), "")
+		p.write("", s.Green(s.Bold("Done"))+s.Dim(took), "")
 	case errors.Is(err, engine.ErrNoFit):
 		p.write("", s.Yellow(s.Bold("Nothing held up"))+s.Dim(took), "")
 	case isQuiet(err):
@@ -245,17 +245,16 @@ func (p *progressPrinter) startLines(ev engine.Event) []string {
 		}
 		p.rounds[ev.Round] = true
 		if ev.Round > 1 {
-			return p.heading(p.emoji("🔁 ") + s.Heading("Round "+strconv.Itoa(ev.Round)) +
+			return p.heading(s.Heading("Round "+strconv.Itoa(ev.Round)) +
 				s.Dim("  nothing held up, so trying new worlds"))
 		}
-		return p.heading(p.emoji("🎨 ") + s.Heading("Round 1") +
-			s.Dim("  drafting from several worlds"))
+		return p.heading(s.Heading("Round 1") + s.Dim("  drafting from several worlds"))
 	case engine.StepFinal:
 		name := "Polishing the analogy"
 		if ev.World != "" {
 			name = "Polishing the " + ev.World + " analogy"
 		}
-		return p.heading(p.emoji("✨ ") + s.Heading(name))
+		return p.heading(s.Heading(name))
 	}
 	return nil
 }

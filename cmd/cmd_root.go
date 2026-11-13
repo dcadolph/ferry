@@ -156,9 +156,12 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 	)
 	res, err := engine.NewWithConfig(completer, cfg).Run(ctx, s.input(summary))
 	prog.finish(interrupted(ctx, err))
-	outStyle := render.NewStyle(!s.asJSON && render.ColorWanted(terminal(stdout)))
+	out := output{
+		style: render.NewStyle(!s.asJSON && render.ColorWanted(terminal(stdout))),
+		cols:  render.Width(streamWidth(stdout)),
+	}
 	if err != nil {
-		return runFailed(ctx, stdout, res, s, outStyle, err)
+		return runFailed(ctx, stdout, res, s, out, err)
 	}
 	logger.Debug("run finished",
 		zap.Int("rounds", res.Rounds),
@@ -167,17 +170,43 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 		zap.Bool("note", res.Note != ""),
 		zap.Duration("elapsed", time.Since(start)),
 	)
-	printNote(stderr, res.Note)
-	return writeResult(stdout, res, s, outStyle)
+	printNote(stderr, res.Note, messageWidth(errTerm, stderr))
+	return writeResult(stdout, res, s, out)
 }
 
-// printNote writes the engine's note about the result to w as one "ferry: note:" line, when
-// there is one. It goes to stderr on every run, terminal or not, so a result that is not a
-// clean polished analogy never passes without a word.
-func printNote(w io.Writer, note string) {
+// output holds how text on stdout is styled and how wide it is laid out.
+type output struct {
+	// style colors the text.
+	style render.Style
+	// cols is the width the text is wrapped to.
+	cols int
+}
+
+// printNote writes the engine's note about the result to w as a "ferry: note:" message, when
+// there is one, wrapped to cols when cols is above 0. It goes to stderr on every run, terminal
+// or not, so a result that is not a clean polished analogy never passes without a word.
+func printNote(w io.Writer, note string, cols int) {
 	if note = util.CollapseSpace(note); note != "" {
-		fmt.Fprintf(w, "ferry: note: %s\n", note)
+		fmt.Fprintln(w, message("ferry: note: ", note, cols))
 	}
+}
+
+// message returns text after prefix, wrapped to cols under its own first line when cols is
+// above 0, and on one line otherwise.
+func message(prefix, text string, cols int) string {
+	if cols < 1 {
+		return prefix + text
+	}
+	return render.Hang(prefix, text, cols)
+}
+
+// messageWidth returns the width a message on w is wrapped to: the clamped terminal width when
+// w is a terminal, and 0, meaning one line, when it is not.
+func messageWidth(isTerm bool, w any) int {
+	if !isTerm {
+		return 0
+	}
+	return render.Width(streamWidth(w))
 }
 
 // interrupted turns err into a quiet exit when ctx ended because the user pressed Ctrl-C.
@@ -192,7 +221,7 @@ func interrupted(ctx context.Context, err error) error {
 // first prints the work that was paid for to w, with or without --show-work: the skeleton and
 // every candidate as text, or the partial result as JSON. The user sees why each candidate was
 // dropped without running again.
-func runFailed(ctx context.Context, w io.Writer, res engine.Result, s settings, st render.Style, err error) error {
+func runFailed(ctx context.Context, w io.Writer, res engine.Result, s settings, out output, err error) error {
 	err = interrupted(ctx, err)
 	if !errors.Is(err, engine.ErrNoFit) {
 		return err
@@ -201,7 +230,7 @@ func runFailed(ctx context.Context, w io.Writer, res engine.Result, s settings, 
 	if s.asJSON {
 		werr = writeJSON(w, res, s.pretty)
 	} else {
-		werr = render.Work(w, res, st)
+		werr = render.Work(w, res, out.style, out.cols)
 	}
 	if werr != nil {
 		return errors.Join(err, werr)
@@ -209,12 +238,13 @@ func runFailed(ctx context.Context, w io.Writer, res engine.Result, s settings, 
 	return err
 }
 
-// writeResult prints res to w as JSON or as text, as the settings ask. Text is colored by st.
-func writeResult(w io.Writer, res engine.Result, s settings, st render.Style) error {
+// writeResult prints res to w as JSON or as text, as the settings ask. Text is laid out as out
+// says.
+func writeResult(w io.Writer, res engine.Result, s settings, out output) error {
 	if s.asJSON {
 		return writeJSON(w, res, s.pretty)
 	}
-	return render.Text(w, res, s.showWork, st)
+	return render.Text(w, res, s.showWork, out.style, out.cols)
 }
 
 // writeJSON prints res to w as one JSON value and a newline, indented when pretty is set.

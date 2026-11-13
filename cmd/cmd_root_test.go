@@ -10,11 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"testing/iotest"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -64,26 +66,41 @@ World: cars
 
 // testWorkSkeleton is the skeleton part of the work for a run against the mock model.
 const testWorkSkeleton = `Skeleton:
-Players:
-- the ops team: restarts the service every morning
-Constraint: two engineers this quarter
-Tradeoff: a week on the fix delays the next feature
-Cost of inaction: the crashes grow until restarts stop working
-Decision: spend a week fixing the leak now
-Point: the restarts cost more than the fix
-Cause and effect:
-1. A memory leak builds up overnight.
-2. The service crashes.
-3. Someone restarts it each morning.
+
+  Players
+    the ops team  restarts the service every morning
+
+  Constraint        two engineers this quarter
+  Tradeoff          a week on the fix delays the next feature
+  Cost of inaction  the crashes grow until restarts stop working
+  Decision          spend a week fixing the leak now
+  Point             the restarts cost more than the fix
+
+  Cause and effect
+    1. A memory leak builds up overnight.
+    2. The service crashes.
+    3. Someone restarts it each morning.
 
 Candidates:
+
 `
 
-// testWorkRecheck is the work line for a polished analogy that passed its check.
-const testWorkRecheck = `
-Polished analogy: kept, fit 4
-Problems: none
-`
+// testRule returns the divider line for a candidate titled title, at a width of 80.
+func testRule(title string) string {
+	return "  ── " + title + " " + strings.Repeat("─", 80-6-utf8.RuneCountInString(title)) + "\n"
+}
+
+// testWorkRecheck returns the work for the check of the polished analogy. One that failed its
+// check is printed with its text and problems.
+func testWorkRecheck(kept bool) string {
+	if kept {
+		return "\nPolished analogy:\n\n" + testRule("cars · round 1 · kept · fit 4/5") +
+			"    Problems: none\n"
+	}
+	return "\nPolished analogy:\n\n" + testRule("cars · round 1 · dropped · fit 2/5") +
+		"    " + testAnalogy().Spoken + "\n\n" +
+		"    Problems\n    - the cause and effect run backward\n"
+}
 
 // errTestWrite is returned by testFailWriter.
 var errTestWrite = errors.New("pipe closed")
@@ -307,22 +324,34 @@ func (r *testCLI) run(ctx context.Context, c engine.Completer, stdin string, arg
 	return root.ExecuteContext(ctx)
 }
 
-// testWorkCandidates returns the work lines for one candidate per world, all with the same
-// verdict, as the mock model's drafts and checks produce them.
-func testWorkCandidates(round int, kept bool, worlds ...string) string {
+// testWorkCandidates returns the candidates table and one block per candidate, for one
+// candidate per world, all with the same verdict. Each list of worlds is one round, in order.
+func testWorkCandidates(kept bool, rounds ...[]string) string {
 	verdict := testVerdict(kept)
-	status, problems := "kept", "Problems: none\n"
+	status, problems := "kept", "    Problems: none\n"
 	if !kept {
 		status = "dropped"
-		problems = "Problems:\n- " + strings.Join(verdict.Problems, "\n- ") + "\n"
+		problems = "    Problems\n    - " + strings.Join(verdict.Problems, "\n    - ") + "\n"
 	}
-	var b strings.Builder
-	for i, w := range worlds {
-		if i > 0 {
-			b.WriteString("\n")
+	worldCol := len("World")
+	for _, worlds := range rounds {
+		for _, w := range worlds {
+			worldCol = max(worldCol, len(w))
 		}
-		fmt.Fprintf(&b, "%s (round %d): %s, fit %d\n%s\n%s",
-			w, round, status, verdict.Fit, testCandidate().Spoken, problems)
+	}
+	fit := strconv.Itoa(verdict.Fit) + "/5"
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %-*s  Round  Verdict  Fit\n", worldCol, "World")
+	for i, worlds := range rounds {
+		for _, w := range worlds {
+			fmt.Fprintf(&b, "  %-*s  %-5d  %-7s  %s\n", worldCol, w, i+1, status, fit)
+		}
+	}
+	for i, worlds := range rounds {
+		for _, w := range worlds {
+			b.WriteString("\n" + testRule(fmt.Sprintf("%s · round %d · %s · fit %s", w, i+1, status, fit)))
+			b.WriteString("    " + testCandidate().Spoken + "\n\n" + problems)
+		}
 	}
 	return b.String()
 }
@@ -330,10 +359,9 @@ func testWorkCandidates(round int, kept bool, worlds ...string) string {
 // testNoFitWork returns the work a run prints when the mock model drops every draft in both
 // rounds.
 func testNoFitWork() string {
-	return testWorkSkeleton +
-		testWorkCandidates(1, false, "cars", "kitchens", "construction", "sports") + "\n" +
-		testWorkCandidates(2, false,
-			"home plumbing", "gardening", "air travel", "household budgets")
+	return testWorkSkeleton + testWorkCandidates(false,
+		[]string{"cars", "kitchens", "construction", "sports"},
+		[]string{"home plumbing", "gardening", "air travel", "household budgets"})
 }
 
 // TestRootRun checks full text runs against the mock model: each way of giving the summary,
@@ -384,8 +412,8 @@ func TestRootRun(t *testing.T) {
 	}, { // Test 7: Show work adds the skeleton, every candidate, and the check of the polish.
 		Args: []string{"--show-work", testSummary},
 		WantResult: testText + "World: cars\n\n" + testWorkSkeleton +
-			testWorkCandidates(1, true, "cars", "kitchens", "construction", "sports") +
-			testWorkRecheck,
+			testWorkCandidates(true, []string{"cars", "kitchens", "construction", "sports"}) +
+			testWorkRecheck(true),
 		WantOpts: defaultOpts,
 	}, { // Test 8: --pretty without --json leaves the text alone.
 		Args:       []string{"--pretty", testSummary},
@@ -777,9 +805,8 @@ func TestRootNote(t *testing.T) {
 		Model: &testModel{Replies: testRepliesWith(t, testVerdict(true), testVerdict(false))},
 		Args:  []string{"--show-work", testSummary},
 		WantStdout: testDraftText + "\n" + testWorkSkeleton +
-			testWorkCandidates(1, true, "cars", "kitchens", "construction", "sports") +
-			"\nPolished analogy: dropped, fit 2\n" + testAnalogy().Spoken + "\n" +
-			"Problems:\n- the cause and effect run backward\n",
+			testWorkCandidates(true, []string{"cars", "kitchens", "construction", "sports"}) +
+			testWorkRecheck(false),
 		WantStderr: reminder + "\n" + recheckNote, WantCalls: 11,
 	}, { // Test 3: JSON output carries the note too, and stderr still says it.
 		Model: &testModel{
@@ -847,7 +874,7 @@ func TestRootTerminal(t *testing.T) {
 		WantLines: []string{"\nRead the situation  0s\n", "  ✓ cars              kept     4/5\n"},
 	}, { // Test 2: With color wanted, stderr and stdout carry color and the occasional emoji.
 		Args: []string{testSummary}, Color: true,
-		WantLines: []string{"🔒 ", "🔍 ", "🎨 ", "✨ ", "🏁 ", "\x1b[32m✓\x1b[0m"},
+		WantLines: []string{"🔒 ", "🔍 ", "\x1b[32m✓\x1b[0m"},
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
@@ -1080,7 +1107,7 @@ func TestRootInterrupted(t *testing.T) {
 				t.Fatalf("error = %v, want a QuietExitError", err)
 			}
 			var msg bytes.Buffer
-			if diff := cmp.Diff(codeInterrupted, report(&msg, err)); diff != "" {
+			if diff := cmp.Diff(codeInterrupted, report(&msg, err, 0)); diff != "" {
 				t.Errorf("exit code mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff("", msg.String()); diff != "" {
@@ -1187,6 +1214,31 @@ func TestRootCmdPanics(t *testing.T) {
 				}
 			}()
 			rootCmd(test.Factory, test.Terminal)
+		})
+	}
+}
+
+// TestMessage checks that a message is wrapped under its own text on a terminal and kept on one
+// line otherwise.
+func TestMessage(t *testing.T) {
+	t.Parallel()
+	text := "no analogy fit: closest was cars at fit 3: the natural fix inside the analogy is wrong"
+	tests := []struct {
+		WantResult string
+		Cols       int
+	}{{ // Test 0: Without a width the message stays on one line.
+		Cols: 0, WantResult: "ferry: " + text,
+	}, { // Test 1: With a width the message wraps under its own first word.
+		Cols: 50,
+		WantResult: "ferry: no analogy fit: closest was cars at fit 3:\n" +
+			"       the natural fix inside the analogy is wrong",
+	}}
+	for testNum, test := range tests {
+		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
+			t.Parallel()
+			if diff := cmp.Diff(test.WantResult, message("ferry: ", text, test.Cols)); diff != "" {
+				t.Errorf("mismatch (-want +got):\n%s", diff)
+			}
 		})
 	}
 }

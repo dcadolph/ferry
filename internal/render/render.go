@@ -11,11 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/dcadolph/ferry/internal/engine"
-	"github.com/dcadolph/ferry/internal/util"
 )
-
-// width is the column at which prose is wrapped.
-const width = 80
 
 // Names of the templates in text.tmpl.
 const (
@@ -30,17 +26,22 @@ const (
 //go:embed text.tmpl
 var textSource string
 
-// textTemplate parses the text output templates with the funcs of st.
-func textTemplate(st Style) (*template.Template, error) {
+// textTemplate parses the text output templates with the funcs of st, wrapping text to cols.
+func textTemplate(st Style, cols int) (*template.Template, error) {
+	l := layout{st: st, cols: Width(cols)}
 	return template.New("text").Funcs(template.FuncMap{
-		"wrap":    func(s string) string { return wrap(s, width) },
-		"inc":     util.Inc,
-		"head":    st.Heading,
-		"strong":  st.Bold,
-		"dim":     st.Dim,
-		"good":    st.Green,
-		"warn":    st.Yellow,
-		"verdict": func(kept bool) string { return verdict(st, kept) },
+		"wrap":     func(s string) string { return wrap(s, l.cols) },
+		"head":     st.Heading,
+		"sub":      func(s string) string { return pad + st.Bold(s) },
+		"strong":   st.Bold,
+		"dim":      st.Dim,
+		"field":    l.field,
+		"players":  l.players,
+		"steps":    l.steps,
+		"table":    l.table,
+		"rule":     l.rule,
+		"spoken":   l.spoken,
+		"problems": l.problems,
 	}).Parse(textSource)
 }
 
@@ -52,11 +53,12 @@ func verdict(st Style, kept bool) string {
 	return st.Yellow("dropped")
 }
 
-// Text writes res to w as text, colored by st: the spoken analogy, what stands for what, where
-// it breaks, and its world. With showWork it adds a blank line and the work that Work prints.
-// Nothing is written when a template fails.
-func Text(w io.Writer, res engine.Result, showWork bool, st Style) error {
-	t, err := textTemplate(st)
+// Text writes res to w as text, colored by st and wrapped to the width that Width makes of
+// cols: the spoken analogy, what stands for what, where it breaks, and its world. With
+// showWork it adds a blank line and the work that Work prints. Nothing is written when a
+// template fails.
+func Text(w io.Writer, res engine.Result, showWork bool, st Style, cols int) error {
+	t, err := textTemplate(st, cols)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrRender, err)
 	}
@@ -78,9 +80,10 @@ func Text(w io.Writer, res engine.Result, showWork bool, st Style) error {
 // when the run got that far. A polished text that did not pass is printed there, since the
 // analogy in the result is then the checked draft. Work suits a run where no analogy held up,
 // since it leaves out the missing winner. The text is colored by st. Nothing is written when
-// the template fails.
-func Work(w io.Writer, res engine.Result, st Style) error {
-	t, err := textTemplate(st)
+// the template fails. The work is laid out in columns and wrapped to the width that Width
+// makes of cols.
+func Work(w io.Writer, res engine.Result, st Style, cols int) error {
+	t, err := textTemplate(st, cols)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrRender, err)
 	}

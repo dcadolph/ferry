@@ -26,15 +26,16 @@ func execute() int {
 		<-ctx.Done()
 		stop()
 	}()
-	return report(os.Stderr, rootCmd(newClaudeCompleter, isTerminal).ExecuteContext(ctx))
+	err := rootCmd(newClaudeCompleter, isTerminal).ExecuteContext(ctx)
+	return report(os.Stderr, err, messageWidth(isTerminal(os.Stderr), os.Stderr))
 }
 
 // report prints err to w as "ferry: <message>" unless it is a quiet exit, and returns the exit
-// code for it.
-func report(w io.Writer, err error) int {
+// code for it. The message is wrapped to cols when cols is above 0.
+func report(w io.Writer, err error, cols int) int {
 	var quiet *QuietExitError
 	if err != nil && !errors.As(err, &quiet) {
-		fmt.Fprintf(w, "ferry: %v\n", err)
+		fmt.Fprintln(w, message("ferry: ", err.Error(), cols))
 	}
 	return exitCode(err)
 }

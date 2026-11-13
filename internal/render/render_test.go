@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -107,33 +109,49 @@ World: cars
 // candidates header.
 const testTextSkeleton = `
 Skeleton:
-Players:
-- the ops team: restarts the service
-- leadership: decides what gets fixed
-Constraint: two engineers this quarter
-Tradeoff: a week on the fix delays the next feature
-Cost of inaction: outages grow until a restart no longer helps
-Decision: spend a week on the fix now
-Point: the restarts cost more than the fix
-Cause and effect:
-1. A memory bug leaks memory.
-2. The service crashes overnight.
-3. Someone restarts it each morning.
+
+  Players
+    the ops team  restarts the service
+    leadership    decides what gets fixed
+
+  Constraint        two engineers this quarter
+  Tradeoff          a week on the fix delays the next feature
+  Cost of inaction  outages grow until a restart no longer helps
+  Decision          spend a week on the fix now
+  Point             the restarts cost more than the fix
+
+  Cause and effect
+    1. A memory bug leaks memory.
+    2. The service crashes overnight.
+    3. Someone restarts it each morning.
 
 Candidates:
+
 `
 
-// testTextCandidates is the candidates list of the work section for testResult.
-const testTextCandidates = `cars (round 1): kept, fit 4
-We keep topping off the oil instead of fixing the leak.
-Problems: none
+// testRule returns the divider line for a candidate titled title, at a width of 80.
+func testRule(title string) string {
+	return "  ── " + title + " " + strings.Repeat("─", 80-6-utf8.RuneCountInString(title)) + "\n"
+}
 
-kitchens (round 1): dropped, fit 2
-We keep mopping the floor while the sink runs.
-Problems:
-- A running sink is obvious, the bug is hidden.
-- Mopping is cheap, restarts are not.
+// testTextCandidates returns the candidates table and blocks of the work section for
+// testResult.
+func testTextCandidates() string {
+	return `  World     Round  Verdict  Fit
+  cars      1      kept     4/5
+  kitchens  1      dropped  2/5
+
+` + testRule("cars · round 1 · kept · fit 4/5") + `    We keep topping off the oil instead of fixing the leak.
+
+    Problems: none
+
+` + testRule("kitchens · round 1 · dropped · fit 2/5") + `    We keep mopping the floor while the sink runs.
+
+    Problems
+    - A running sink is obvious, the bug is hidden.
+    - Mopping is cheap, restarts are not.
 `
+}
 
 // testTextEmpty is the text output for a zero result with the work shown.
 const testTextEmpty = `Say it like this:
@@ -151,18 +169,22 @@ World:
 
 // testTextEmptyWork is the work output for a zero result.
 const testTextEmptyWork = `Skeleton:
-Players:
-(none)
-Constraint:
-Tradeoff:
-Cost of inaction:
-Decision:
-Point:
-Cause and effect:
-(none)
+
+  Players
+    (none)
+
+  Constraint
+  Tradeoff
+  Cost of inaction
+  Decision
+  Point
+
+  Cause and effect
+    (none)
 
 Candidates:
-(none)
+
+  (none)
 `
 
 // testRecheck returns a check of a polished version of the analogy, kept or dropped.
@@ -185,20 +207,19 @@ func testRecheck(kept bool) *engine.Checked {
 	return c
 }
 
-// testTextRecheckKept is the work output for a polished analogy that passed its check.
-const testTextRecheckKept = `
-Polished analogy: kept, fit 4
-Problems: none
-`
+// testTextRecheckKept returns the work output for a polished analogy that passed its check.
+func testTextRecheckKept() string {
+	return "\nPolished analogy:\n\n" + testRule("cars · round 1 · kept · fit 4/5") +
+		"    Problems: none\n"
+}
 
-// testTextRecheckDropped is the work output for a polished analogy that failed its check. It
-// shows the polished text, since the analogy in the result is then the draft.
-const testTextRecheckDropped = `
-Polished analogy: dropped, fit 2
-We top off the oil each morning. One day the leak wins, so we fix it now.
-Problems:
-- The polish dropped the growing cost.
-`
+// testTextRecheckDropped returns the work output for a polished analogy that failed its check.
+// It shows the polished text, since the analogy in the result is then the draft.
+func testTextRecheckDropped() string {
+	return "\nPolished analogy:\n\n" + testRule("cars · round 1 · dropped · fit 2/5") +
+		"    We top off the oil each morning. One day the leak wins, so we fix it now.\n\n" +
+		"    Problems\n    - The polish dropped the growing cost.\n"
+}
 
 // TestText checks the full text output with and without the work section.
 func TestText(t *testing.T) {
@@ -218,29 +239,30 @@ func TestText(t *testing.T) {
 		In: testResult(), ShowWork: false, WantResult: testTextPlain,
 	}, { // Test 1: Show work appends the skeleton and every candidate.
 		In: testResult(), ShowWork: true,
-		WantResult: testTextPlain + testTextSkeleton + testTextCandidates,
+		WantResult: testTextPlain + testTextSkeleton + testTextCandidates(),
 	}, { // Test 2: Empty lists print a placeholder instead of nothing.
 		In: engine.Result{}, ShowWork: true, WantResult: testTextEmpty,
-	}, { // Test 3: A candidate with no round number leaves the round out.
+	}, { // Test 3: A candidate with no round number leaves the round out of the table and rule.
 		In: roundless, ShowWork: true,
 		WantResult: testTextPlain + testTextSkeleton +
-			"cars: kept, fit 4\n" +
-			"We keep topping off the oil instead of fixing the leak.\n" +
-			"Problems: none\n",
+			"  World  Verdict  Fit\n  cars   kept     4/5\n\n" +
+			testRule("cars · kept · fit 4/5") +
+			"    We keep topping off the oil instead of fixing the leak.\n\n" +
+			"    Problems: none\n",
 	}, { // Test 4: Show work adds the check of the polished analogy after the candidates.
 		In: rechecked, ShowWork: true,
-		WantResult: testTextPlain + testTextSkeleton + testTextCandidates + testTextRecheckKept,
+		WantResult: testTextPlain + testTextSkeleton + testTextCandidates() + testTextRecheckKept(),
 	}, { // Test 5: Without show work the check of the polished analogy stays out.
 		In: rechecked, ShowWork: false, WantResult: testTextPlain,
 	}, { // Test 6: The note is not part of the text, since the command prints it on stderr.
 		In: noted, ShowWork: true,
-		WantResult: testTextPlain + testTextSkeleton + testTextCandidates,
+		WantResult: testTextPlain + testTextSkeleton + testTextCandidates(),
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
-			if err := Text(&buf, test.In, test.ShowWork, NewStyle(false)); err != nil {
+			if err := Text(&buf, test.In, test.ShowWork, NewStyle(false), 80); err != nil {
 				t.Fatalf("Text: %v", err)
 			}
 			if diff := cmp.Diff(test.WantResult, buf.String()); diff != "" {
@@ -263,21 +285,21 @@ func TestWork(t *testing.T) {
 		In         engine.Result
 		WantResult string
 	}{{ // Test 0: The work prints without a leading blank line or the analogy.
-		In: noWinner, WantResult: testTextSkeleton[1:] + testTextCandidates,
+		In: noWinner, WantResult: testTextSkeleton[1:] + testTextCandidates(),
 	}, { // Test 1: An empty result prints placeholders.
 		In: engine.Result{}, WantResult: testTextEmptyWork,
 	}, { // Test 2: A polished analogy that passed its check is listed with its fit.
 		In:         polishKept,
-		WantResult: testTextSkeleton[1:] + testTextCandidates + testTextRecheckKept,
+		WantResult: testTextSkeleton[1:] + testTextCandidates() + testTextRecheckKept(),
 	}, { // Test 3: A polished analogy that failed its check is printed with its problems.
 		In:         polishDropped,
-		WantResult: testTextSkeleton[1:] + testTextCandidates + testTextRecheckDropped,
+		WantResult: testTextSkeleton[1:] + testTextCandidates() + testTextRecheckDropped(),
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
-			if err := Work(&buf, test.In, NewStyle(false)); err != nil {
+			if err := Work(&buf, test.In, NewStyle(false), 80); err != nil {
 				t.Fatalf("Work: %v", err)
 			}
 			if diff := cmp.Diff(test.WantResult, buf.String()); diff != "" {
@@ -294,9 +316,9 @@ func TestWriteError(t *testing.T) {
 		Write func() error
 		Want  error
 	}{{ // Test 0: Text.
-		Write: func() error { return Text(testFailWriter{}, testResult(), true, NewStyle(false)) }, Want: ErrWrite,
+		Write: func() error { return Text(testFailWriter{}, testResult(), true, NewStyle(false), 80) }, Want: ErrWrite,
 	}, { // Test 1: Work.
-		Write: func() error { return Work(testFailWriter{}, testResult(), NewStyle(false)) }, Want: ErrWrite,
+		Write: func() error { return Work(testFailWriter{}, testResult(), NewStyle(false), 80) }, Want: ErrWrite,
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {

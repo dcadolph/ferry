@@ -15,48 +15,43 @@
 {{define "work" -}}
 {{$s := .Skeleton -}}
 {{head "Skeleton:"}}
-Players:
-{{range $s.Players}}- {{.Name}}: {{.Role}}
-{{else}}(none)
-{{end -}}
-{{wrap (printf "Constraint: %s" $s.Constraint)}}
-{{wrap (printf "Tradeoff: %s" $s.Tradeoff)}}
-{{wrap (printf "Cost of inaction: %s" $s.CostOfInaction)}}
-{{wrap (printf "Decision: %s" $s.Decision)}}
-{{wrap (printf "Point: %s" $s.Point)}}
-Cause and effect:
-{{range $i, $step := $s.Chain}}{{inc $i}}. {{$step}}
-{{else}}(none)
-{{end}}
+
+{{sub "Players"}}
+{{players $s.Players}}
+
+{{field "Constraint" $s.Constraint}}
+{{field "Tradeoff" $s.Tradeoff}}
+{{field "Cost of inaction" $s.CostOfInaction}}
+{{field "Decision" $s.Decision}}
+{{field "Point" $s.Point}}
+
+{{sub "Cause and effect"}}
+{{steps $s.Chain}}
+
 {{head "Candidates:"}}
-{{range $i, $c := .Checked -}}
-{{if $i}}
-{{end -}}
-{{$c.Candidate.World}}
-{{- if $c.Round}} (round {{$c.Round}}){{end -}}
-: {{verdict $c.Kept}}, fit {{$c.Verdict.Fit}}
-{{wrap $c.Candidate.Spoken}}
-{{if $c.Verdict.Problems -}}
-Problems:
-{{range $c.Verdict.Problems}}- {{.}}
-{{end -}}
-{{else -}}
-Problems: none
-{{end -}}
-{{else -}}
-(none)
+
+{{if .Checked -}}
+{{table .Checked}}
+{{range .Checked}}
+{{template "checked" .}}
+{{- end}}
+{{- else -}}
+{{"  (none)"}}
 {{end -}}
 {{with .Recheck}}
-{{head "Polished analogy:"}} {{verdict .Kept}}, fit {{.Verdict.Fit}}
-{{if not .Kept -}}
-{{wrap .Candidate.Spoken}}
+{{head "Polished analogy:"}}
+
+{{rule .}}
+{{if not .Kept}}{{spoken .Candidate.Spoken}}
+
 {{end -}}
-{{if .Verdict.Problems -}}
-Problems:
-{{range .Verdict.Problems}}- {{.}}
+{{problems .Verdict.Problems}}
 {{end -}}
-{{else -}}
-Problems: none
-{{end -}}
-{{end -}}
+{{end}}
+
+{{define "checked" -}}
+{{rule .}}
+{{spoken .Candidate.Spoken}}
+
+{{problems .Verdict.Problems}}
 {{end}}
