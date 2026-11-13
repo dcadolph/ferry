@@ -10,6 +10,8 @@ import (
 	"text/template"
 	"unicode/utf8"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/dcadolph/ferry/internal/engine"
 )
 
@@ -32,7 +34,9 @@ func textTemplate(st Style, cols int) (*template.Template, error) {
 	return template.New("text").Funcs(template.FuncMap{
 		"wrap":     func(s string) string { return wrap(s, l.cols) },
 		"head":     st.Heading,
-		"sub":      func(s string) string { return pad + st.Bold(s) },
+		"sub":      func(s string) string { return pad + st.Label(s) },
+		"good":     st.Green,
+		"italic":   st.Italic,
 		"strong":   st.Bold,
 		"dim":      st.Dim,
 		"field":    l.field,
@@ -53,11 +57,15 @@ func verdict(st Style, kept bool) string {
 	return st.Yellow("dropped")
 }
 
-// Text writes res to w as text, colored by st and wrapped to the width that Width makes of
-// cols: the spoken analogy, what stands for what, where it breaks, and its world. With
-// showWork it adds a blank line and the work that Work prints. Nothing is written when a
-// template fails.
+// Text writes res to w: the spoken analogy, what stands for what, where it breaks, and its
+// world, and with showWork a blank line and the work that Work prints. When st is on, the
+// output is the styled layout with panels, tables, and colors for a dark background unless st
+// is set for a light one. Otherwise it is plain text. Either way it fits the width that Width
+// makes of cols. Nothing is written when a template fails.
 func Text(w io.Writer, res engine.Result, showWork bool, st Style, cols int) error {
+	if st.On() {
+		return fancyOut(w, newFancy(cols, !st.light).textOut(res, showWork))
+	}
 	t, err := textTemplate(st, cols)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrRender, err)
@@ -75,14 +83,16 @@ func Text(w io.Writer, res engine.Result, showWork bool, st Style, cols int) err
 	return flush(w, &buf)
 }
 
-// Work writes the work behind res to w as plain text: the skeleton, every candidate with its
-// world, round, verdict, fit, spoken text, and problems, and the check of the polished analogy
-// when the run got that far. A polished text that did not pass is printed there, since the
-// analogy in the result is then the checked draft. Work suits a run where no analogy held up,
-// since it leaves out the missing winner. The text is colored by st. Nothing is written when
-// the template fails. The work is laid out in columns and wrapped to the width that Width
-// makes of cols.
+// Work writes the work behind res to w: the skeleton, every candidate with its world, round,
+// verdict, fit, spoken text, and problems, and the check of the polished analogy when the run
+// got that far. A polished text that did not pass is printed there, since the analogy in the
+// result is then the checked draft. Work suits a run where no analogy held up, since it leaves
+// out the missing winner. It is styled or plain as Text describes, and fits the width that
+// Width makes of cols. Nothing is written when the template fails.
 func Work(w io.Writer, res engine.Result, st Style, cols int) error {
+	if st.On() {
+		return fancyOut(w, newFancy(cols, !st.light).work(res))
+	}
 	t, err := textTemplate(st, cols)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrRender, err)
@@ -92,6 +102,14 @@ func Work(w io.Writer, res engine.Result, st Style, cols int) error {
 		return fmt.Errorf("%w: %w", ErrRender, err)
 	}
 	return flush(w, &buf)
+}
+
+// fancyOut writes styled output to w, cutting its colors down to what w's terminal shows.
+func fancyOut(w io.Writer, s string) error {
+	if _, err := lipgloss.Fprint(w, s); err != nil {
+		return fmt.Errorf("%w: %w", ErrWrite, err)
+	}
+	return nil
 }
 
 // flush writes the rendered text in buf to w.

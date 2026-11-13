@@ -872,7 +872,8 @@ func TestRootTerminal(t *testing.T) {
 	}, { // Test 1: A summary given as arguments gets the progress lines and no prompt.
 		Args: []string{testSummary}, WantPrompt: 0,
 		WantLines: []string{"\nRead the situation  0s\n", "  ✓ cars              kept     4/5\n"},
-	}, { // Test 2: With color wanted, stderr and stdout carry color and the occasional emoji.
+	}, { // Test 2: With color wanted, stderr carries color and emoji and stdout gets the styled
+		// layout.
 		Args: []string{testSummary}, Color: true,
 		WantLines: []string{"🔒 ", "🔍 ", "\x1b[32m✓\x1b[0m"},
 	}}
@@ -897,8 +898,8 @@ func TestRootTerminal(t *testing.T) {
 				}
 			}
 			if test.Color {
-				if !strings.Contains(cli.Stdout.String(), "\x1b[1m\x1b[36mSay it like this:") {
-					t.Errorf("stdout is not colored:\n%q", cli.Stdout.String())
+				if !strings.Contains(cli.Stdout.String(), "╭") {
+					t.Errorf("stdout is not the styled output:\n%s", cli.Stdout.String())
 				}
 				return
 			}

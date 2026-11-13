@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -160,6 +162,9 @@ func runRoot(cmd *cobra.Command, args []string, newCompleter completerFactory, t
 		style: render.NewStyle(!s.asJSON && render.ColorWanted(terminal(stdout))),
 		cols:  render.Width(streamWidth(stdout)),
 	}
+	if out.style.On() && src.terminal {
+		out.style = out.style.OnLight(!darkBackground(stdin, stdout))
+	}
 	if err != nil {
 		return runFailed(ctx, stdout, res, s, out, err)
 	}
@@ -180,6 +185,21 @@ type output struct {
 	style render.Style
 	// cols is the width the text is wrapped to.
 	cols int
+}
+
+// darkBackground reports whether the terminal behind in and out has a dark background. The
+// caller checks that in is a terminal. It asks the terminal only when both are real files, and
+// assumes dark otherwise or when the terminal does not answer.
+func darkBackground(in, out any) bool {
+	inFile, ok := in.(*os.File)
+	if !ok {
+		return true
+	}
+	outFile, ok := out.(*os.File)
+	if !ok {
+		return true
+	}
+	return lipgloss.HasDarkBackground(inFile, outFile)
 }
 
 // printNote writes the engine's note about the result to w as a "ferry: note:" message, when

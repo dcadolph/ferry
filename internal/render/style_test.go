@@ -1,10 +1,7 @@
 package render
 
 import (
-	"bytes"
 	"fmt"
-	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -84,45 +81,6 @@ func TestColorWanted(t *testing.T) {
 			}
 			if diff := cmp.Diff(test.Want, NewStyle(test.Want).On()); diff != "" {
 				t.Errorf("On mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-// TestTextColor checks that colored output is the plain output plus color codes, with the
-// headings and the spoken analogy styled.
-func TestTextColor(t *testing.T) {
-	t.Parallel()
-	ansi := regexp.MustCompile("\x1b\\[[0-9;]*m")
-	res := testResult()
-	res.Recheck = testRecheck(false)
-	tests := []struct {
-		WantParts []string
-		ShowWork  bool
-	}{{ // Test 0: The default output.
-		WantParts: []string{"\x1b[1m\x1b[36mSay it like this:\x1b[0m", "\x1b[2m->\x1b[0m"},
-	}, { // Test 1: With the work, verdicts are colored.
-		ShowWork:  true,
-		WantParts: []string{"\x1b[32mkept\x1b[0m", "\x1b[33mdropped\x1b[0m"},
-	}}
-	for testNum, test := range tests {
-		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
-			t.Parallel()
-			var plain, colored bytes.Buffer
-			if err := Text(&plain, res, test.ShowWork, NewStyle(false), 80); err != nil {
-				t.Fatalf("Text plain: %v", err)
-			}
-			if err := Text(&colored, res, test.ShowWork, NewStyle(true), 80); err != nil {
-				t.Fatalf("Text colored: %v", err)
-			}
-			got := colored.String()
-			if diff := cmp.Diff(plain.String(), ansi.ReplaceAllString(got, "")); diff != "" {
-				t.Errorf("stripped mismatch (-want +got):\n%s", diff)
-			}
-			for _, want := range test.WantParts {
-				if !strings.Contains(got, want) {
-					t.Errorf("output lacks %q:\n%s", want, got)
-				}
 			}
 		})
 	}

@@ -1,9 +1,9 @@
 {{define "analogy" -}}
 {{head "Say it like this:"}}
-{{strong (wrap .Analogy.Spoken)}}
+{{strong (italic (wrap .Analogy.Spoken))}}
 
 {{head "What stands for what:"}}
-{{range .Analogy.Mappings}}- {{.Analogy}} {{dim "->"}} {{.Real}}
+{{range .Analogy.Mappings}}- {{good .Analogy}} {{dim "->"}} {{.Real}}
 {{else}}(none)
 {{end}}
 {{head "Where it breaks:"}}

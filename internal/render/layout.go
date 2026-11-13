@@ -87,7 +87,7 @@ type layout struct {
 // in the column beside it.
 func (l layout) field(label, text string) string {
 	gap := strings.Repeat(" ", labelWidth-utf8.RuneCountInString(label))
-	prefix := pad + l.st.Bold(label) + gap
+	prefix := pad + l.st.Cyan(label) + gap
 	return hang(prefix, len(pad)+labelWidth, text, l.cols)
 }
 
@@ -109,10 +109,11 @@ func (l layout) players(ps []engine.Player) string {
 	for _, p := range ps {
 		if utf8.RuneCountInString(p.Name) > nameCol {
 			role := hang(strings.Repeat(" ", width), width, p.Role, l.cols)
-			lines = append(lines, subPad+p.Name, role)
+			lines = append(lines, subPad+l.st.Bold(p.Name), role)
 			continue
 		}
-		lines = append(lines, hang(subPad+padRight(p.Name, nameCol)+"  ", width, p.Role, l.cols))
+		name := l.st.Bold(p.Name) + strings.Repeat(" ", nameCol-utf8.RuneCountInString(p.Name)+2)
+		lines = append(lines, hang(subPad+name, width, p.Role, l.cols))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -127,7 +128,7 @@ func (l layout) steps(chain []string) string {
 	lines := make([]string, len(chain))
 	for i, step := range chain {
 		num := padRight(strconv.Itoa(i+1)+".", digits+1) + " "
-		lines[i] = Hang(subPad+num, step, l.cols)
+		lines[i] = hang(subPad+l.st.Cyan(num), len(subPad)+len(num), step, l.cols)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -136,7 +137,7 @@ func (l layout) steps(chain []string) string {
 func (l layout) bullets(items []string) string {
 	lines := make([]string, len(items))
 	for i, item := range items {
-		lines[i] = Hang(subPad+"- ", item, l.cols)
+		lines[i] = hang(subPad+l.st.Red("-")+" ", len(subPad)+2, item, l.cols)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -157,19 +158,21 @@ func (l layout) table(checked []engine.Checked) string {
 	header += padRight("Verdict", verdictCol) + "  Fit"
 	lines := []string{l.st.Dim(header)}
 	for _, c := range checked {
-		row := pad + padRight(c.Candidate.World, worldCol) + "  "
+		row := pad + l.st.Bold(c.Candidate.World) +
+			strings.Repeat(" ", worldCol-utf8.RuneCountInString(c.Candidate.World)+2)
 		if rounds {
 			row += padRight(roundText(c.Round), len("Round")) + "  "
 		}
 		row += verdict(l.st, c.Kept) + strings.Repeat(" ", verdictCol-len(verdictWord(c.Kept))) +
-			"  " + fitText(c.Verdict.Fit)
+			"  " + l.st.Fit(c.Verdict.Fit, fitText(c.Verdict.Fit))
 		lines = append(lines, row)
 	}
 	return strings.Join(lines, "\n")
 }
 
 // rule returns a divider line that names a checked candidate: its world, its round when it has
-// one, its verdict, and its fit, followed by a line to the width.
+// one, its verdict, and its fit, followed by a line to the width. The line is green for a kept
+// candidate and yellow for a dropped one.
 func (l layout) rule(c engine.Checked) string {
 	parts := []string{c.Candidate.World}
 	if c.Round > 0 {
@@ -181,10 +184,15 @@ func (l layout) rule(c engine.Checked) string {
 	if c.Round > 0 {
 		shown += l.st.Dim(" · round " + strconv.Itoa(c.Round))
 	}
-	shown += l.st.Dim(" · ") + verdict(l.st, c.Kept) + l.st.Dim(" · fit "+fitText(c.Verdict.Fit))
+	shown += l.st.Dim(" · ") + verdict(l.st, c.Kept) + l.st.Dim(" · fit ") +
+		l.st.Fit(c.Verdict.Fit, fitText(c.Verdict.Fit))
 	used := len(pad) + 3 + utf8.RuneCountInString(plain) + 1
 	tail := max(l.cols-used, 3)
-	return pad + l.st.Dim("── ") + shown + " " + l.st.Dim(strings.Repeat("─", tail))
+	line := l.st.Yellow
+	if c.Kept {
+		line = l.st.Green
+	}
+	return pad + line("── ") + shown + " " + line(strings.Repeat("─", tail))
 }
 
 // problems returns a candidate's problems as a subheading and a dashed list, or a line that
@@ -193,12 +201,12 @@ func (l layout) problems(ps []string) string {
 	if len(ps) == 0 {
 		return subPad + "Problems: none"
 	}
-	return subPad + l.st.Bold("Problems") + "\n" + l.bullets(ps)
+	return subPad + l.st.Label("Problems") + "\n" + l.bullets(ps)
 }
 
 // spoken returns the spoken text of a candidate indented under its divider.
 func (l layout) spoken(s string) string {
-	return Hang(subPad, s, l.cols)
+	return l.st.Italic(Hang(subPad, s, l.cols))
 }
 
 // verdictWord returns "kept" or "dropped".
