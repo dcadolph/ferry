@@ -1,0 +1,55 @@
+name: release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test -count=1 ./...
+
+      - name: Build archives for every OS and arch
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            name="ferry_${TAG#v}_${os}_${arch}"
+            bin="ferry"
+            if [ "$os" = windows ]; then bin="ferry.exe"; fi
+            mkdir -p "dist/$name"
+            GOOS="$os" GOARCH="$arch" go build -trimpath \
+              -ldflags "-s -w -X github.com/dcadolph/ferry/cmd.version=$TAG" \
+              -o "dist/$name/$bin" .
+            cp README.md "dist/$name/"
+            if [ "$os" = windows ]; then
+              (cd dist && zip -qr "$name.zip" "$name")
+            else
+              tar -C dist -czf "dist/$name.tar.gz" "$name"
+            fi
+          done
+          (cd dist && sha256sum *.tar.gz *.zip > SHA256SUMS)
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/*.tar.gz dist/*.zip dist/SHA256SUMS --clobber
