@@ -41,11 +41,12 @@ func textTemplate(cols int) (*template.Template, error) {
 	}).Parse(textSource)
 }
 
-// Text writes res to w: the spoken analogy, what stands for what, where it breaks, and its
-// world, and with showWork a blank line and the work that Work prints. When st is on, the
-// output is the styled layout with panels, tables, and colors for a dark background unless st
-// is set for a light one. Otherwise it is plain text. Either way it fits the width that Width
-// makes of cols. Nothing is written when a template fails.
+// Text writes res to w: with showWork first the work that Work prints and a blank line, then
+// what stands for what, where it breaks, its world, and last the spoken analogy, so the output
+// always ends on the text to say. When st is on, the output is the styled layout with panels,
+// tables, and colors for a dark background unless st is set for a light one. Otherwise it is
+// plain text. Either way it fits the width that Width makes of cols. Nothing is written when a
+// template fails.
 func Text(w io.Writer, res engine.Result, showWork bool, st Style, cols int) error {
 	if st.On() {
 		return fancyOut(w, newFancy(cols, !st.light).textOut(res, showWork))
@@ -55,14 +56,14 @@ func Text(w io.Writer, res engine.Result, showWork bool, st Style, cols int) err
 		return fmt.Errorf("%w: %w", ErrRender, err)
 	}
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, analogyPart, res); err != nil {
-		return fmt.Errorf("%w: %w", ErrRender, err)
-	}
 	if showWork {
-		buf.WriteByte('\n')
 		if err := t.ExecuteTemplate(&buf, workPart, res); err != nil {
 			return fmt.Errorf("%w: %w", ErrRender, err)
 		}
+		buf.WriteByte('\n')
+	}
+	if err := t.ExecuteTemplate(&buf, analogyPart, res); err != nil {
+		return fmt.Errorf("%w: %w", ErrRender, err)
 	}
 	return flush(w, &buf)
 }

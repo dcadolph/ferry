@@ -55,14 +55,6 @@ committee to approve the replacement this month."
 ```
 
 ```text
-Say it like this:
-It's like a shed roof a few neighbors share. Every time it leaks, whoever's
-around climbs up and dabs on some tar, because that takes ten minutes and nobody
-has to pass the hat for a real repair. But the patches give out sooner each
-time, and in the last big storm two neighbors had everything they kept in there
-ruined, so we can keep dabbing tar and wait for the next storm, or chip in once
-this month and fix the roof.
-
 What stands for what:
 - the neighbors who share the shed and dab tar on the roof whenever it leaks while they happen to be around -> the gardeners who share the pump and tape it whenever it breaks while they happen to be there
 - the neighbors sitting down together and agreeing to chip in for a real repair -> the garden committee that can approve the pump replacement
@@ -82,6 +74,14 @@ version makes it sound. Name that first, then say the actual number plainly: the
 real fix is four hundred dollars.
 
 World: construction
+
+Say it like this:
+It's like a shed roof a few neighbors share. Every time it leaks, whoever's
+around climbs up and dabs on some tar, because that takes ten minutes and nobody
+has to pass the hat for a real repair. But the patches give out sooner each
+time, and in the last big storm two neighbors had everything they kept in there
+ruined, so we can keep dabbing tar and wait for the next storm, or chip in once
+this month and fix the roof.
 ```
 
 That run made 11 calls in 93 seconds at `--effort high`. It drafted four worlds, kept only
@@ -104,7 +104,7 @@ not a polished one that met every rule, it says why in a line on stderr that sta
 | `--file`      | none               | Read the summary from a file. `-` means stdin.                     |
 | `--json`      | off                | Print the whole result as JSON, work included.                     |
 | `--pretty`    | off                | Indent the `--json` output.                                        |
-| `--show-work` | off                | Also print the skeleton, every candidate, and each verdict.        |
+| `--show-work` | off                | Print the skeleton, every candidate, and each verdict first.       |
 | `--timeout`   | `5m`               | Time limit for one model call, retries included.                   |
 | `--log-level` | `warn`             | Lowest log level written to stderr.                                |
 | `--version`   | off                | Print the version and stop.                                        |

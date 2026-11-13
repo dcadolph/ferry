@@ -35,26 +35,26 @@ import (
 // testSummary is the situation the tests send.
 const testSummary = "The service crashes every night and we restart it every morning."
 
-// testText is the text output for a run the mock model carries to the end, up to its world
-// line.
-const testText = `Say it like this:
-We keep topping off the oil. The leak only grows.
-
-What stands for what:
+// testText returns the text output for a run the mock model carries to the end with an analogy
+// from world.
+func testText(world string) string {
+	return `What stands for what:
 - topping off the oil -> restarting the service
 - the leak -> the memory bug
 
 Where it breaks:
 Oil leaks are steady, but our crashes come in bursts.
 
+World: ` + world + `
+
+Say it like this:
+We keep topping off the oil. The leak only grows.
 `
+}
 
 // testDraftText is the text output when the checked draft from cars stands in for the polished
 // analogy.
-const testDraftText = `Say it like this:
-We keep topping off the oil instead of fixing the leak.
-
-What stands for what:
+const testDraftText = `What stands for what:
 - topping off the oil -> restarting the service
 - the leak -> the memory bug
 
@@ -62,6 +62,9 @@ Where it breaks:
 Oil leaks are steady, but our crashes come in bursts.
 
 World: cars
+
+Say it like this:
+We keep topping off the oil instead of fixing the leak.
 `
 
 // testWorkSkeleton is the skeleton part of the work for a run against the mock model.
@@ -382,27 +385,27 @@ func TestRootRun(t *testing.T) {
 		Args        []string
 		WantOpts    claude.Options
 	}{{ // Test 0: A quoted summary prints the four parts as text.
-		Args: []string{testSummary}, WantResult: testText + "World: cars\n", WantOpts: defaultOpts,
+		Args: []string{testSummary}, WantResult: testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 1: A summary split across arguments works the same.
 		Args:       strings.Fields(testSummary),
-		WantResult: testText + "World: cars\n", WantOpts: defaultOpts,
+		WantResult: testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 2: A summary in a file.
 		Args:       []string{"--file", file},
-		WantResult: testText + "World: cars\n", WantOpts: defaultOpts,
+		WantResult: testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 3: A summary piped on stdin.
-		Stdin: testSummary, WantResult: testText + "World: cars\n", WantOpts: defaultOpts,
+		Stdin: testSummary, WantResult: testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 4: A file of - reads stdin.
 		Args: []string{"--file", "-"}, Stdin: testSummary,
-		WantResult: testText + "World: cars\n", WantOpts: defaultOpts,
+		WantResult: testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 5: A preferred world wins and names the output's world.
 		Args:       []string{"--world", "sports", testSummary},
-		WantResult: testText + "World: sports\n", WantOpts: defaultOpts,
+		WantResult: testText("sports"), WantOpts: defaultOpts,
 	}, { // Test 6: Model, effort, and timeout reach the client, with the effort lowered and the
 		// larger reply cap that the max effort gets.
 		Args: []string{
 			"--model", "claude-test", "--effort", "MAX", "--timeout", "30s", testSummary,
 		},
-		WantResult: testText + "World: cars\n",
+		WantResult: testText("cars"),
 		WantOpts: claude.Options{
 			Model:     "claude-test",
 			Effort:    "max",
@@ -411,29 +414,29 @@ func TestRootRun(t *testing.T) {
 		},
 	}, { // Test 7: Show work adds the skeleton, every candidate, and the check of the polish.
 		Args: []string{"--show-work", testSummary},
-		WantResult: testText + "World: cars\n\n" + testWorkSkeleton +
+		WantResult: testWorkSkeleton +
 			testWorkCandidates(true, []string{"cars", "kitchens", "construction", "sports"}) +
-			testWorkRecheck(true),
+			testWorkRecheck(true) + "\n" + testText("cars"),
 		WantOpts: defaultOpts,
 	}, { // Test 8: --pretty without --json leaves the text alone.
 		Args:       []string{"--pretty", testSummary},
-		WantResult: testText + "World: cars\n", WantOpts: defaultOpts,
+		WantResult: testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 9: A summary that starts with help is a summary, not a command.
 		Args:        []string{"help", "me", "explain", "this"},
 		WantSummary: "help me explain this",
-		WantResult:  testText + "World: cars\n", WantOpts: defaultOpts,
+		WantResult:  testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 10: A summary that starts with version is a summary.
 		Args:        []string{"version", "of", "events"},
 		WantSummary: "version of events",
-		WantResult:  testText + "World: cars\n", WantOpts: defaultOpts,
+		WantResult:  testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 11: A summary that starts with completion is a summary.
 		Args:        []string{"completion", "is", "late"},
 		WantSummary: "completion is late",
-		WantResult:  testText + "World: cars\n", WantOpts: defaultOpts,
+		WantResult:  testText("cars"), WantOpts: defaultOpts,
 	}, { // Test 12: The single word help is a summary too.
 		Args:        []string{"help"},
 		WantSummary: "help",
-		WantResult:  testText + "World: cars\n", WantOpts: defaultOpts,
+		WantResult:  testText("cars"), WantOpts: defaultOpts,
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
@@ -804,9 +807,9 @@ func TestRootNote(t *testing.T) {
 	}, { // Test 2: Show work prints the polished text that failed, after the candidates.
 		Model: &testModel{Replies: testRepliesWith(t, testVerdict(true), testVerdict(false))},
 		Args:  []string{"--show-work", testSummary},
-		WantStdout: testDraftText + "\n" + testWorkSkeleton +
+		WantStdout: testWorkSkeleton +
 			testWorkCandidates(true, []string{"cars", "kitchens", "construction", "sports"}) +
-			testWorkRecheck(false),
+			testWorkRecheck(false) + "\n" + testDraftText,
 		WantStderr: reminder + "\n" + recheckNote, WantCalls: 11,
 	}, { // Test 3: JSON output carries the note too, and stderr still says it.
 		Model: &testModel{
@@ -903,7 +906,7 @@ func TestRootTerminal(t *testing.T) {
 				}
 				return
 			}
-			if diff := cmp.Diff(testText+"World: cars\n", cli.Stdout.String()); diff != "" {
+			if diff := cmp.Diff(testText("cars"), cli.Stdout.String()); diff != "" {
 				t.Errorf("stdout mismatch (-want +got):\n%s", diff)
 			}
 			if !strings.HasPrefix(errOut, reminder+"\n") {
@@ -936,7 +939,7 @@ func TestRootNoLeak(t *testing.T) {
 		WantLogs   []string
 	}{{ // Test 0: A clean run logs its start and finish.
 		Model:   &testModel{Replies: testReplies(t, testVerdict(true))},
-		Summary: summary, WantStdout: testText + "World: cars\n",
+		Summary: summary, WantStdout: testText("cars"),
 		WantLogs: []string{"debug\trun started\t", "debug\trun finished\t"},
 	}, { // Test 1: A run where nothing holds up.
 		Model:   &testModel{Replies: testReplies(t, testVerdict(false))},

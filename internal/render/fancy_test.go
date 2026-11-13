@@ -23,7 +23,8 @@ func testStrip(s string) string {
 }
 
 // TestFancyText checks that the styled output has its panel, tables, pills, meters, and cards,
-// lists the kept candidate first, and keeps every line inside the width.
+// lists the kept candidate first, keeps every line inside the width, and ends on the spoken
+// panel.
 func TestFancyText(t *testing.T) {
 	t.Parallel()
 	res := testResult()
@@ -64,6 +65,16 @@ func TestFancyText(t *testing.T) {
 			}
 			if test.ShowWork && strings.Index(got, "#1  cars") > strings.Index(got, "#2  kitchens") {
 				t.Errorf("kept candidate is not first:\n%s", got)
+			}
+			say := strings.Index(got, "Say it like this")
+			for _, before := range []string{"World: cars", "Where it breaks", "Polished analogy"} {
+				if i := strings.LastIndex(got, before); i > say {
+					t.Errorf("%q comes after the spoken panel:\n%s", before, got)
+				}
+			}
+			lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+			if last := lines[len(lines)-1]; !strings.HasPrefix(last, " ╰") {
+				t.Errorf("output ends on %q, not the spoken panel:\n%s", last, got)
 			}
 		})
 	}

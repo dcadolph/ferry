@@ -88,12 +88,7 @@ func testResult() engine.Result {
 }
 
 // testTextPlain is the text output for testResult without the work.
-const testTextPlain = `Say it like this:
-We keep topping off the oil every morning instead of fixing the leak. The engine
-still runs, but each quart costs us a little more, and one day the leak wins.
-Let's put the car on the lift this week.
-
-What stands for what:
+const testTextPlain = `What stands for what:
 - topping off the oil -> restarting the service each morning
 - the leak -> the memory bug
 - putting the car on the lift -> a week to fix the bug
@@ -103,12 +98,16 @@ A leak drips at a steady rate, but our crashes come in bursts after big
 releases.
 
 World: cars
+
+Say it like this:
+We keep topping off the oil every morning instead of fixing the leak. The engine
+still runs, but each quart costs us a little more, and one day the leak wins.
+Let's put the car on the lift this week.
 `
 
 // testTextSkeleton is the skeleton part of the work section for testResult, through the
 // candidates header.
-const testTextSkeleton = `
-Skeleton:
+const testTextSkeleton = `Skeleton:
 
   Players
     the ops team  restarts the service
@@ -154,9 +153,7 @@ func testTextCandidates() string {
 }
 
 // testTextEmpty is the text output for a zero result with the work shown.
-const testTextEmpty = `Say it like this:
-
-
+const testTextEmpty = testTextEmptyWork + `
 What stands for what:
 (none)
 
@@ -165,7 +162,9 @@ Where it breaks:
 
 World:
 
-` + testTextEmptyWork
+Say it like this:
+
+`
 
 // testTextEmptyWork is the work output for a zero result.
 const testTextEmptyWork = `Skeleton:
@@ -237,26 +236,27 @@ func TestText(t *testing.T) {
 		ShowWork   bool
 	}{{ // Test 0: The default output has the four required parts and nothing else.
 		In: testResult(), ShowWork: false, WantResult: testTextPlain,
-	}, { // Test 1: Show work appends the skeleton and every candidate.
+	}, { // Test 1: Show work puts the skeleton and every candidate before the analogy.
 		In: testResult(), ShowWork: true,
-		WantResult: testTextPlain + testTextSkeleton + testTextCandidates(),
+		WantResult: testTextSkeleton + testTextCandidates() + "\n" + testTextPlain,
 	}, { // Test 2: Empty lists print a placeholder instead of nothing.
 		In: engine.Result{}, ShowWork: true, WantResult: testTextEmpty,
 	}, { // Test 3: A candidate with no round number leaves the round out of the table and rule.
 		In: roundless, ShowWork: true,
-		WantResult: testTextPlain + testTextSkeleton +
+		WantResult: testTextSkeleton +
 			"  World  Verdict  Fit\n  cars   kept     4/5\n\n" +
 			testRule("cars · kept · fit 4/5") +
 			"    We keep topping off the oil instead of fixing the leak.\n\n" +
-			"    Problems: none\n",
+			"    Problems: none\n\n" + testTextPlain,
 	}, { // Test 4: Show work adds the check of the polished analogy after the candidates.
 		In: rechecked, ShowWork: true,
-		WantResult: testTextPlain + testTextSkeleton + testTextCandidates() + testTextRecheckKept(),
+		WantResult: testTextSkeleton + testTextCandidates() + testTextRecheckKept() + "\n" +
+			testTextPlain,
 	}, { // Test 5: Without show work the check of the polished analogy stays out.
 		In: rechecked, ShowWork: false, WantResult: testTextPlain,
 	}, { // Test 6: The note is not part of the text, since the command prints it on stderr.
 		In: noted, ShowWork: true,
-		WantResult: testTextPlain + testTextSkeleton + testTextCandidates(),
+		WantResult: testTextSkeleton + testTextCandidates() + "\n" + testTextPlain,
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {
@@ -285,15 +285,15 @@ func TestWork(t *testing.T) {
 		In         engine.Result
 		WantResult string
 	}{{ // Test 0: The work prints without a leading blank line or the analogy.
-		In: noWinner, WantResult: testTextSkeleton[1:] + testTextCandidates(),
+		In: noWinner, WantResult: testTextSkeleton + testTextCandidates(),
 	}, { // Test 1: An empty result prints placeholders.
 		In: engine.Result{}, WantResult: testTextEmptyWork,
 	}, { // Test 2: A polished analogy that passed its check is listed with its fit.
 		In:         polishKept,
-		WantResult: testTextSkeleton[1:] + testTextCandidates() + testTextRecheckKept(),
+		WantResult: testTextSkeleton + testTextCandidates() + testTextRecheckKept(),
 	}, { // Test 3: A polished analogy that failed its check is printed with its problems.
 		In:         polishDropped,
-		WantResult: testTextSkeleton[1:] + testTextCandidates() + testTextRecheckDropped(),
+		WantResult: testTextSkeleton + testTextCandidates() + testTextRecheckDropped(),
 	}}
 	for testNum, test := range tests {
 		t.Run(fmt.Sprintf("test %d", testNum), func(t *testing.T) {

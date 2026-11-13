@@ -33,18 +33,18 @@ func newFancy(cols int, dark bool) fancy {
 	return fancy{p: newPalette(dark), cols: Width(cols)}
 }
 
-// textOut returns the full styled output for res: the analogy, and with showWork the work after
-// it.
+// textOut returns the full styled output for res: with showWork the work first, then the
+// analogy, so the output ends on the text to say.
 func (f fancy) textOut(res engine.Result, showWork bool) string {
 	out := f.analogy(res.Analogy)
 	if showWork {
-		out += "\n" + f.work(res)
+		out = f.work(res) + "\n" + out
 	}
 	return out
 }
 
-// analogy returns the winning analogy: the spoken text in a panel with a blended border, what
-// stands for what, where it breaks, and its world.
+// analogy returns the winning analogy: what stands for what, where it breaks, and its world,
+// then last the spoken text in a panel with a blended border.
 func (f fancy) analogy(a engine.Analogy) string {
 	width := min(f.cols-2, panelMax)
 	panel := lipgloss.NewStyle().
@@ -56,9 +56,6 @@ func (f fancy) analogy(a engine.Analogy) string {
 		Foreground(f.p.text).
 		Render(a.Spoken)
 	parts := []string{
-		f.title("Say it like this"),
-		indentBlock(panel, 1),
-		"",
 		f.title("What stands for what"),
 		f.mappings(a.Mappings),
 		"",
@@ -66,6 +63,9 @@ func (f fancy) analogy(a engine.Analogy) string {
 		f.para(a.BreaksDown, 3),
 		"",
 		"   " + fg(f.p.muted).Render("World: ") + fg(f.p.accent2).Bold(true).Render(a.World),
+		"",
+		f.title("Say it like this"),
+		indentBlock(panel, 1),
 	}
 	return strings.Join(parts, "\n") + "\n"
 }

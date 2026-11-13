@@ -1,7 +1,4 @@
 {{define "analogy" -}}
-Say it like this:
-{{wrap .Analogy.Spoken}}
-
 What stands for what:
 {{range .Analogy.Mappings}}- {{.Analogy}} -> {{.Real}}
 {{else}}(none)
@@ -10,6 +7,9 @@ Where it breaks:
 {{wrap .Analogy.BreaksDown}}
 
 {{wrap (printf "World: %s" .Analogy.World)}}
+
+Say it like this:
+{{wrap .Analogy.Spoken}}
 {{end}}
 
 {{define "work" -}}
