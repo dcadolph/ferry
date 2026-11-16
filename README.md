@@ -99,7 +99,7 @@ not a polished one that met every rule, it says why in a line on stderr that sta
 |---------------|--------------------|--------------------------------------------------------------------|
 | `--audience`  | see below          | Who will hear the analogy, e.g. "my director" or "new engineers".  |
 | `--world`     | none               | A world you prefer. It is drafted too, and it wins if it holds up. |
-| `--model`     | `claude-fable-5-2` | Claude model ID.                                                   |
+| `--model`     | `claude-opus-5-5`  | Claude model ID.                                                   |
 | `--effort`    | `high`             | Reasoning effort: `low`, `medium`, `high`, `xhigh`, or `max`.      |
 | `--file`      | none               | Read the summary from a file. `-` means stdin.                     |
 | `--json`      | off                | Print the whole result as JSON, work included.                     |

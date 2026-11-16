@@ -21,7 +21,7 @@ import (
 // Defaults for the Claude client.
 const (
 	// DefaultModel is the model called when Options.Model is empty.
-	DefaultModel = "claude-fable-5-2"
+	DefaultModel = "claude-opus-5-5"
 	// DefaultEffort is the effort used when Options.Effort is empty.
 	DefaultEffort = "high"
 	// DefaultMaxTokens is the reply cap used when Options.MaxTokens is zero. It suits efforts

@@ -360,10 +360,10 @@ func TestCompleteRequest(t *testing.T) {
 		Request      engine.Request
 		Options      Options
 		WantFallback bool
-	}{{ // Test 0: The defaults send Claude Fable 5.2 at high effort with fallbacks.
+	}{{ // Test 0: The defaults send Claude Opus 5.5 at high effort with fallbacks.
 		Request: full,
 		WantBody: map[string]any{
-			"model": "claude-fable-5-2", "max_tokens": float64(16000),
+			"model": "claude-opus-5-5", "max_tokens": float64(16000),
 			"system": system, "messages": messages,
 			"output_config": map[string]any{"effort": "high", "format": format},
 			"fallbacks":     "default",
