@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="ferry-logo.png" alt="ferry" width="240">
-</p>
+![ferry](ferry-banner.png)
 
 # ferry
 
