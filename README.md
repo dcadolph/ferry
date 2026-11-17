@@ -10,6 +10,10 @@ words that make other people see it. Describe the situation in plain language, a
 back two or three sentences with the same cause and effect as the real problem, drawn from a
 world your listener already knows and pointed at the decision you need.
 
+The name comes from the word metaphor, which is Greek for "to carry across." A ferry carries
+things from one shore to another, and ferry carries your point from your world into your
+listener's.
+
 ## Install
 
 Install from a clone of this repository:
