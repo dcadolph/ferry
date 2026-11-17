@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="ferry-logo.png" alt="ferry" width="240">
+</p>
+
 # ferry
 
 ferry turns a plain summary of a messy situation into an analogy you can say out loud.
